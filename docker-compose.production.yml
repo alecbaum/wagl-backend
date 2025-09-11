@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Wagl Backend API - Production
+  api:
+    build:
+      context: .
+      dockerfile: src/WaglBackend.Api/Dockerfile
+      args:
+        BUILD_CONFIGURATION: Release
+    container_name: wagl-api-prod
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__PostgreSQL=${POSTGRES_CONNECTION}
+      - ConnectionStrings__Redis=${REDIS_CONNECTION_STRING:-redis:6379}
+      - JwtConfiguration__SecretKey=${JWT_SECRET_KEY}
+      - JwtConfiguration__Issuer=WaglBackendAPI
+      - JwtConfiguration__Audience=WaglBackendClient
+      - JwtConfiguration__ExpirationMinutes=60
+      - JwtConfiguration__RefreshTokenExpirationDays=7
+      - RedisConfiguration__ConnectionString=${REDIS_CONNECTION_STRING:-redis:6379}
+      - RedisConfiguration__KeyPrefix=wagl:prod
+      - RedisConfiguration__DefaultExpirationMinutes=30
+    ports:
+      - "80:8080"
+    networks:
+      - wagl-prod-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Redis for Production (optional if using external Redis service)
+  redis:
+    image: redis:7-alpine
+    container_name: wagl-redis-prod
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_prod_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - wagl-prod-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    profiles:
+      - with-redis
+
+volumes:
+  redis_prod_data:
+    driver: local
+
+networks:
+  wagl-prod-network:
+    driver: bridge

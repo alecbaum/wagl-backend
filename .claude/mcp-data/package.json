@@ -1,0 +1,12 @@
+{
+  "name": "mcp-sqlite-wrapper",
+  "version": "1.0.0",
+  "description": "SQLite wrapper for MCP memory system",
+  "main": "sqlite-wrapper.js",
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
+  },
+  "scripts": {
+    "test": "node test-mcp.js"
+  }
+}

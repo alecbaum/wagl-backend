@@ -196,3 +196,45 @@ Rate limiting implemented via middleware with Redis backing for distributed scen
 ### Environment-Specific Settings
 - Development: Swagger UI, detailed logging
 - Production: Security headers, minimal logging
+
+## Multi-Agent System
+
+This project uses a comprehensive multi-agent system for rapid development within 6-day sprint cycles:
+
+### Core Orchestration Agents
+- **master-orchestrator**: PROACTIVELY coordinates all complex, multi-step tasks and delegates to specialized agents
+- **full-stack-builder**: Handles complete web application development coordinating frontend, backend, and deployment
+- **project-orchestrator**: Manages project-specific workflows with custom rules and agent preferences
+- **bug-fix-coordinator**: Specializes in debugging, testing, and validation workflows
+
+### Engineering Agents
+- **backend-architect**: Designs .NET Core APIs, database architecture, and server infrastructure
+- **frontend-developer**: Builds UI components with access to patterns and component knowledge
+- **rapid-prototyper**: Creates MVPs and proof-of-concepts for quick validation
+- **ai-engineer**: Implements AI/ML features, language model integration, and intelligent automation
+- **mobile-app-builder**: Develops native iOS/Android applications with platform-specific optimizations
+- **devops-automator**: Sets up CI/CD pipelines, cloud infrastructure, and deployment automation
+- **test-writer-fixer**: Writes comprehensive tests, analyzes failures, and maintains test integrity
+
+### Specialized Domain Agents
+- **design/**: ui-designer, ux-researcher, brand-guardian, visual-storyteller, whimsy-injector
+- **product/**: feedback-synthesizer, sprint-prioritizer, trend-researcher  
+- **marketing/**: app-store-optimizer, tiktok-strategist, content-creator
+- **studio-operations/**: analytics-reporter, finance-tracker, infrastructure-maintainer, legal-compliance-checker, support-responder
+- **testing/**: api-tester, performance-benchmarker, test-results-analyzer, workflow-optimizer, tool-evaluator
+
+### Proactive Agent Activation
+Agents automatically trigger based on task context:
+- **Complex projects**: master-orchestrator coordinates multi-agent workflows
+- **Code changes**: test-writer-fixer ensures comprehensive testing
+- **UI/UX updates**: whimsy-injector adds delightful user experiences  
+- **Feature flags**: experiment-tracker manages A/B testing and validation
+- **Launch activities**: project-shipper coordinates releases and go-to-market
+
+### Manual Agent Coordination
+For explicit agent control use `@agent-name` or request specific agents:
+- "Use @master-orchestrator to coordinate building the authentication system"
+- "Have @backend-architect design the API structure first"
+- "Get @rapid-prototyper to create a quick MVP for user testing"
+
+Agents are configured for the .NET Core 9 Web API architecture and follow the Atomic Design Pattern organizational structure.

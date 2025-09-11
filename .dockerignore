@@ -1,0 +1,125 @@
+# Docker ignore file for Wagl Backend
+
+# .NET build outputs
+**/bin/
+**/obj/
+**/out/
+**/*.trx
+**/*.coverage
+**/*.coveragexml
+
+# NuGet packages
+**/packages/
+**/*.nuget.props
+**/*.nuget.targets
+
+# Visual Studio files
+.vs/
+**/*.user
+**/*.suo
+**/*.cache
+**/*.docstates
+**/*.sln.docstates
+**/*.userprefs
+**/*.pidb
+**/*.svclog
+**/*.scc
+
+# VS Code files
+.vscode/
+*.code-workspace
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# Environment files
+.env*
+!.env.docker
+!.env.docker.production
+
+# Docker files (only include in specific contexts)
+**/Dockerfile.dev
+**/.dockerignore
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+CLAUDE.md
+**/*.md
+!docker/**/*.md
+
+# Logs
+logs/
+*.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache directories
+**/node_modules/
+**/.npm
+**/.yarn
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+**/temp/
+**/tmp/
+**/*.tmp
+**/*.temp
+
+# Coverage reports
+**/coverage/
+**/*.lcov
+
+# Editor directories and files
+.vscode-test/
+*.swp
+*.swo
+*~
+
+# Project specific ignores
+scripts/
+docker-compose.yml
+docker-compose.*.yml
+!docker/
+
+# Security files
+**/*.pfx
+**/*.p12
+**/secrets/
+**/certificates/

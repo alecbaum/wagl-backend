@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "node",
+      "args": ["/home/bash/.asdf/installs/nodejs/24.2.0/lib/node_modules/@modelcontextprotocol/server-memory/dist/index.js"],
+      "type": "stdio",
+      "description": "Short-term memory for agent coordination"
+    },
+    "filesystem": {
+      "command": "node",
+      "args": [
+        "/home/bash/.asdf/installs/nodejs/24.2.0/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
+        "/home/bash/Wagl-Backend/.claude/mcp-data"
+      ],
+      "type": "stdio",
+      "description": "Persistent storage for agent artifacts and decisions"
+    }
+  }
+}
