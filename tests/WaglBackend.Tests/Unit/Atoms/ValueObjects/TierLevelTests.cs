@@ -85,7 +85,7 @@ public class TierLevelTests
         features.Should().Contain("AdvancedAPI");
         features.Should().Contain("PrioritySupport");
         features.Should().Contain("Analytics");
-        features.Should().HaveCount(5);
+        features.Should().HaveCount(4);
     }
 
     [Fact]
@@ -102,8 +102,9 @@ public class TierLevelTests
         features.Should().Contain("AdvancedAPI");
         features.Should().Contain("PremiumAPI");
         features.Should().Contain("24x7Support");
+        features.Should().Contain("Analytics");
         features.Should().Contain("CustomIntegrations");
-        features.Should().HaveCount(7);
+        features.Should().HaveCount(6);
     }
 
     [Fact]

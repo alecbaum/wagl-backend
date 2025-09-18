@@ -31,20 +31,16 @@ public class DatabaseSeeder
     {
         try
         {
-            // For development, ensure database is created
-            if (!await _context.Database.CanConnectAsync())
-            {
-                _logger.LogInformation("Database does not exist, creating it now");
-                await _context.Database.EnsureCreatedAsync();
-                _logger.LogInformation("Database created successfully");
-            }
-            else
-            {
-                _logger.LogInformation("Database connection successful");
-            }
+            // Run database migrations
+            _logger.LogInformation("Running database migrations...");
+            await _context.Database.MigrateAsync();
+            _logger.LogInformation("Database migrations completed successfully");
 
             // Seed roles
             await SeedRolesAsync();
+
+            // Seed demo provider for testing
+            await SeedDemoProviderAsync();
 
             _logger.LogInformation("Database seeding completed successfully");
         }
@@ -312,5 +308,41 @@ public class DatabaseSeeder
         }
 
         await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedDemoProviderAsync()
+    {
+        // Create a specific demo provider with a known API key for documentation purposes
+        const string demoApiKeyValue = "wagl_DemoProvider2024ExampleKeyForTesting";
+        var existingProvider = await _context.Providers
+            .FirstOrDefaultAsync(p => p.Name == "Demo Provider");
+
+        if (existingProvider == null)
+        {
+            var demoApiKey = ApiKey.FromString(demoApiKeyValue);
+            
+            var provider = new Provider
+            {
+                Id = Guid.NewGuid(),
+                Name = "Demo Provider",
+                ContactEmail = "demo@provider.com",
+                Description = "Demo provider for testing API key authentication with 100M requests/hour limit",
+                ApiKey = demoApiKey,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                AllowedIpAddresses = new[] { "127.0.0.1", "::1", "localhost", "0.0.0.0/0" }
+            };
+
+            _context.Providers.Add(provider);
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Created demo provider: {Name} with API key: {ApiKey}", 
+                provider.Name, demoApiKeyValue);
+        }
+        else
+        {
+            _logger.LogInformation("Demo provider already exists with API key ending in: ...{Suffix}", 
+                existingProvider.ApiKey?.Value?.Substring(Math.Max(0, existingProvider.ApiKey.Value.Length - 10)) ?? "NULL");
+        }
     }
 }

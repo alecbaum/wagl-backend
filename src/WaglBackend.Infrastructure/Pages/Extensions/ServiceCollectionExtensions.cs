@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -6,6 +7,8 @@ using WaglBackend.Core.Atoms.Entities;
 using WaglBackend.Core.Molecules.Configurations;
 using WaglBackend.Domain.Organisms.Services.Authentication;
 using WaglBackend.Domain.Organisms.Services.Caching;
+using WaglBackend.Domain.Organisms.Services;
+using WaglBackend.Domain.Organisms.Repositories;
 using WaglBackend.Infrastructure.Pages.Features.Authentication;
 using WaglBackend.Infrastructure.Pages.Features.UserManagement;
 using WaglBackend.Infrastructure.Pages.Features.ProviderManagement;
@@ -104,6 +107,7 @@ public static class ServiceCollectionExtensions
 
         // Register Organisms - Services
         services.AddScoped<ICacheService, RedisCacheService>();
+        services.AddScoped<IChatCacheService, WaglBackend.Infrastructure.Services.Caching.ChatCacheService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IUserAuthService, UserAuthService>();
@@ -113,10 +117,32 @@ public static class ServiceCollectionExtensions
         // services.AddScoped<ITierManagementService, TierManagementService>();
         // services.AddScoped<IRateLimitService, TierRateLimitService>();
 
+        // Register Chat Services
+        services.AddScoped<IChatSessionService, WaglBackend.Infrastructure.Services.ChatSessionService>();
+        services.AddScoped<IRoomAllocationService, WaglBackend.Infrastructure.Services.RoomAllocationService>();
+        services.AddScoped<IInviteManagementService, WaglBackend.Infrastructure.Services.InviteManagementService>();
+        services.AddScoped<IParticipantTrackingService, WaglBackend.Infrastructure.Services.ParticipantTrackingService>();
+        services.AddScoped<IChatMessageService, WaglBackend.Infrastructure.Services.ChatMessageService>();
+
         // Register Organisms - Repositories (would be implemented in actual repositories)
         // services.AddScoped<IUserRepository, UserRepository>();
         // services.AddScoped<IProviderRepository, ProviderRepository>();
         // services.AddScoped<IApiUsageRepository, ApiUsageRepository>();
+
+        // Register Chat Repositories
+        services.AddScoped<IChatSessionRepository, WaglBackend.Infrastructure.Persistence.Repositories.ChatSessionRepository>();
+        services.AddScoped<IChatRoomRepository, WaglBackend.Infrastructure.Persistence.Repositories.ChatRoomRepository>();
+        services.AddScoped<ISessionInviteRepository, WaglBackend.Infrastructure.Persistence.Repositories.SessionInviteRepository>();
+        services.AddScoped<IChatMessageRepository, WaglBackend.Infrastructure.Persistence.Repositories.ChatMessageRepository>();
+        services.AddScoped<IParticipantRepository, WaglBackend.Infrastructure.Persistence.Repositories.ParticipantRepository>();
+
+        // Register Background Services
+        services.AddHostedService<WaglBackend.Infrastructure.Services.Background.SessionCleanupBackgroundService>();
+        services.AddHostedService<WaglBackend.Infrastructure.Services.Background.SessionSchedulerBackgroundService>();
+
+        // Register Authorization Handlers
+        services.AddScoped<IAuthorizationHandler, WaglBackend.Infrastructure.Templates.Authorization.SessionParticipantHandler>();
+        services.AddScoped<IAuthorizationHandler, WaglBackend.Infrastructure.Templates.Authorization.RoomParticipantHandler>();
 
         // Register Pages - Feature Modules
         services.RegisterModule<AuthenticationModule>(configuration);

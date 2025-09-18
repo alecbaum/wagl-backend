@@ -18,6 +18,13 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public DbSet<TierFeature> TierFeatures { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
 
+    // Chat entities
+    public DbSet<ChatSession> ChatSessions { get; set; }
+    public DbSet<ChatRoom> ChatRooms { get; set; }
+    public DbSet<SessionInvite> SessionInvites { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<Participant> Participants { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -28,6 +35,13 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         modelBuilder.ApplyConfiguration(new ApiUsageLogConfiguration());
         modelBuilder.ApplyConfiguration(new TierFeatureConfiguration());
         modelBuilder.ApplyConfiguration(new RefreshTokenConfiguration());
+
+        // Apply chat entity configurations
+        modelBuilder.ApplyConfiguration(new ChatSessionConfiguration());
+        modelBuilder.ApplyConfiguration(new ChatRoomConfiguration());
+        modelBuilder.ApplyConfiguration(new SessionInviteConfiguration());
+        modelBuilder.ApplyConfiguration(new ChatMessageConfiguration());
+        modelBuilder.ApplyConfiguration(new ParticipantConfiguration());
 
         // Configure Identity tables with custom names
         modelBuilder.Entity<User>(entity =>

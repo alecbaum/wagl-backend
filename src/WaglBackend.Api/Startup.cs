@@ -5,6 +5,8 @@ using System.Threading.RateLimiting;
 using Asp.Versioning;
 using WaglBackend.Infrastructure.Pages.Extensions;
 using WaglBackend.Infrastructure.Templates.Middleware;
+using WaglBackend.Infrastructure.Templates.Authorization;
+using StackExchange.Redis;
 
 namespace WaglBackend.Api;
 
@@ -21,6 +23,12 @@ public class Startup
     {
         // Add services following atomic design pattern
         services.AddAtomicDesignServices(Configuration);
+
+        // Configure authorization policies
+        services.AddAuthorization(options =>
+        {
+            options.AddChatPolicies();
+        });
 
         // Add controllers
         services.AddControllers(options =>
@@ -106,6 +114,34 @@ public class Startup
                 name: "redis",
                 tags: new[] { "cache" });
 
+        // Add SignalR with Redis backplane
+        var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+
+        services.AddSignalR(options =>
+        {
+            // Configure SignalR options
+            options.EnableDetailedErrors = isDevelopment;
+            options.MaximumReceiveMessageSize = 32 * 1024; // 32KB
+            options.StreamBufferCapacity = 10;
+            options.MaximumParallelInvocationsPerClient = 1;
+            options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+            options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+            options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+        })
+        .AddStackExchangeRedis(options =>
+        {
+            // Configure Redis backplane
+            options.ConnectionFactory = async writer =>
+            {
+                var redisConnectionString = Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+                var config = StackExchange.Redis.ConfigurationOptions.Parse(redisConnectionString);
+                config.ChannelPrefix = RedisChannel.Literal("wagl:signalr:");
+                config.AbortOnConnectFail = false;
+
+                return await StackExchange.Redis.ConnectionMultiplexer.ConnectAsync(config, writer);
+            };
+        });
+
         // Add CORS
         services.AddCors(options =>
         {
@@ -161,7 +197,10 @@ public class Startup
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapControllers();
-            
+
+            // Add SignalR hub
+            endpoints.MapHub<WaglBackend.Infrastructure.Templates.Hubs.ChatHub>("/chathub");
+
             // Add health check endpoints
             endpoints.MapHealthChecks("/health");
             endpoints.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

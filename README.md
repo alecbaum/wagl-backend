@@ -1,6 +1,6 @@
 # Wagl Backend API
 
-A .NET Core 8.0 Web API implementing a hybrid authentication system with tiered user access and provider API key authentication, following the Atomic Design Pattern.
+A .NET Core 9.0 Web API implementing a hybrid authentication system with tiered user access and provider API key authentication, following the Atomic Design Pattern.
 
 ## 🏗️ Architecture
 
@@ -14,8 +14,8 @@ This project follows the **Atomic Design Pattern** for clean architecture:
 
 ## 🛠️ Technology Stack
 
-- **Framework**: .NET Core 8.0 Web API
-- **Database**: PostgreSQL (Digital Ocean)
+- **Framework**: .NET Core 9.0 Web API
+- **Database**: PostgreSQL
 - **Cache**: Redis
 - **Authentication**: Hybrid (.NET Identity + Custom API Keys)
 - **ORM**: Entity Framework Core 8.0
@@ -25,7 +25,7 @@ This project follows the **Atomic Design Pattern** for clean architecture:
 
 ### Prerequisites
 
-- .NET 8.0 SDK
+- .NET 9.0 SDK
 - PostgreSQL database
 - Redis (optional, falls back to in-memory cache)
 
@@ -78,7 +78,7 @@ The API supports two authentication methods:
 - **Header**: `Authorization: Bearer <jwt_token>`
 
 #### 2. API Key Authentication (Providers)
-- **Rate Limit**: 10,000 requests/hour
+- **Rate Limit**: 100,000,000 requests/hour
 - **Header**: `Authorization: Bearer <api_key>`
 - **Format**: `wagl_<32_character_key>`
 
@@ -93,16 +93,15 @@ Tier3 User: tier3@wagl.com / Tier3Pass123!
 Admin User: admin@wagl.com / AdminPass123!
 ```
 
-## 🏢 Production Configuration
+### Demo API Key
 
-### Digital Ocean Database
-```env
-DATABASE_HOST=telfin-db-do-user-17957093-0.d.db.ondigitalocean.com
-DATABASE_PORT=25060
-DATABASE_NAME=wagldb
-DATABASE_USER=waglmin
-DATABASE_SSL_MODE=require
+For testing provider authentication (100M requests/hour limit):
 ```
+API Key: wagl_DemoProvider2024ExampleKeyForTesting
+Header: Authorization: Bearer wagl_DemoProvider2024ExampleKeyForTesting
+```
+
+## 🏢 Production Configuration
 
 ### Environment Variables
 
@@ -244,4 +243,4 @@ For issues and questions:
 
 ---
 
-**Built with ❤️ using .NET Core 8.0 and the Atomic Design Pattern**
+**Built with ❤️ using .NET Core 9.0 and the Atomic Design Pattern**

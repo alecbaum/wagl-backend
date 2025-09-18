@@ -11,5 +11,5 @@ public class ProviderResponse
     public DateTime? LastAccessedAt { get; set; }
     public string[]? AllowedIpAddresses { get; set; }
     public string? ApiKeyPreview { get; set; }
-    public int HourlyRateLimit { get; set; } = 10000;
+    public int HourlyRateLimit { get; set; } = 100000000;
 }

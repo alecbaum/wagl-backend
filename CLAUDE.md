@@ -121,7 +121,7 @@ Tier-based rate limiting with different limits per account type:
 - **Tier1**: 100 requests/hour
 - **Tier2**: 500 requests/hour
 - **Tier3**: 2000 requests/hour
-- **Provider**: 10000 requests/hour
+- **Provider**: 100000000 requests/hour
 
 Rate limiting implemented via middleware with Redis backing for distributed scenarios.
 
@@ -238,3 +238,31 @@ For explicit agent control use `@agent-name` or request specific agents:
 - "Get @rapid-prototyper to create a quick MVP for user testing"
 
 Agents are configured for the .NET Core 9 Web API architecture and follow the Atomic Design Pattern organizational structure.
+
+## Infrastructure Management
+
+### AWS CLI Operations
+- **Primary Tool**: Use AWS CLI exclusively for all infrastructure interactions
+- **Automated Operations**: Perform AWS operations directly rather than asking user to do them manually
+- **Exception**: Only ask user for manual operations when technically impossible via CLI
+- **Resource Creation**: For significant changes or new AWS resources, request user approval before creation
+- **Commands**: Execute AWS CLI commands to manage services, deployments, and configurations
+
+### Infrastructure Guidelines
+- Automate infrastructure tasks wherever possible
+- Validate AWS credentials and permissions before operations
+- Use appropriate AWS CLI profiles and regions
+- Document infrastructure changes in commit messages
+
+### Infrastructure Documentation
+- **Complete Infrastructure Reference**: See `INFRASTRUCTURE.md` for comprehensive details of all AWS resources
+- **Live Infrastructure Status**: All resources are documented with IDs, ARNs, endpoints, and configurations
+- **Reference Requirements**: Always reference INFRASTRUCTURE.md when needing specific AWS resource information
+- **Update Requirements**: When making infrastructure changes via AWS CLI, immediately update INFRASTRUCTURE.md with new resource details
+- **Connection Strings**: Database and cache connection strings are documented in INFRASTRUCTURE.md
+- **Monitoring**: CloudWatch dashboards and alarms are documented with specific metric configurations
+
+**Key Infrastructure Endpoints (Always reference INFRASTRUCTURE.md for current values):**
+- **Application URL**: `http://wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com`
+- **Database Endpoint**: `wagl-backend-aurora.cluster-cexeows4418s.us-east-1.rds.amazonaws.com:5432`
+- **Cache Endpoint**: `wagl-backend-cache.serverless.use1.cache.amazonaws.com:6379`
