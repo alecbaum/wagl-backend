@@ -17,6 +17,9 @@ using WaglBackend.Infrastructure.Persistence.Context;
 using WaglBackend.Infrastructure.Persistence.Seeding;
 using WaglBackend.Infrastructure.Services.Authentication;
 using WaglBackend.Infrastructure.Services.Caching;
+using WaglBackend.Infrastructure.Services.Resilience;
+using Polly;
+using Polly.Extensions.Http;
 
 namespace WaglBackend.Infrastructure.Pages.Extensions;
 
@@ -35,6 +38,8 @@ public static class ServiceCollectionExtensions
             configuration.GetSection(RateLimitConfiguration.SectionName));
         services.Configure<DatabaseConfiguration>(
             configuration.GetSection(DatabaseConfiguration.SectionName));
+        services.Configure<UAIConfiguration>(
+            configuration.GetSection(UAIConfiguration.SectionName));
 
         // Register Entity Framework DbContext
         services.AddDbContext<ApplicationDbContext>(options =>
@@ -123,6 +128,21 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInviteManagementService, WaglBackend.Infrastructure.Services.InviteManagementService>();
         services.AddScoped<IParticipantTrackingService, WaglBackend.Infrastructure.Services.ParticipantTrackingService>();
         services.AddScoped<IChatMessageService, WaglBackend.Infrastructure.Services.ChatMessageService>();
+
+        // Register UAI Integration Services
+        // Register UAI Resilience Service
+        services.AddSingleton<UAIResilienceService>();
+
+        // Register HttpClient for UAI with Polly retry policies
+        services.AddHttpClient<IUAIIntegrationService, WaglBackend.Infrastructure.Services.UAIIntegrationService>()
+            .AddPolicyHandler((serviceProvider, request) =>
+            {
+                var resilienceService = serviceProvider.GetRequiredService<UAIResilienceService>();
+                return resilienceService.GetResiliencePolicy();
+            });
+
+        services.AddScoped<IUAIWebhookService, WaglBackend.Infrastructure.Services.UAIWebhookService>();
+        services.AddScoped<ISystemParticipantService, WaglBackend.Infrastructure.Services.SystemParticipantService>();
 
         // Register Organisms - Repositories (would be implemented in actual repositories)
         // services.AddScoped<IUserRepository, UserRepository>();

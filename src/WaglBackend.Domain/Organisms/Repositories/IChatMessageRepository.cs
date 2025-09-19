@@ -20,4 +20,7 @@ public interface IChatMessageRepository : IRepository<ChatMessage>
     Task<int> DeleteByRoomIdAsync(RoomId roomId, CancellationToken cancellationToken = default);
     Task<int> ArchiveMessagesBySessionAsync(SessionId sessionId, CancellationToken cancellationToken = default);
     Task<IEnumerable<ChatMessage>> GetByRoomIdAsync(RoomId roomId, CancellationToken cancellationToken = default);
+
+    // UAI Integration methods
+    Task<ChatMessage?> GetByExternalMessageIdAsync(string externalMessageId, CancellationToken cancellationToken = default);
 }

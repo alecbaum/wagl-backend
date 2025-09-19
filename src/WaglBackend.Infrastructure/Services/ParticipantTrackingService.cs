@@ -70,6 +70,19 @@ public class ParticipantTrackingService : IParticipantTrackingService
         }
     }
 
+    public async Task<Participant?> GetByIdAsync(Guid participantId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _participantRepository.GetByIdAsync(participantId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get participant entity {ParticipantId}", participantId);
+            throw;
+        }
+    }
+
     public async Task<Participant?> GetParticipantByConnectionIdAsync(string connectionId, CancellationToken cancellationToken = default)
     {
         try

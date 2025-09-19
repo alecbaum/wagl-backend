@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using WaglBackend.Core.Atoms.Entities;
+using WaglBackend.Core.Atoms.Enums;
 
 namespace WaglBackend.Infrastructure.Persistence.Configurations;
 
@@ -43,6 +44,17 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
 
         builder.Property(x => x.DeletedAt);
 
+        // UAI Integration Properties
+        builder.Property(x => x.MessageType)
+            .IsRequired()
+            .HasDefaultValue(MessageType.UserMessage)
+            .HasConversion<string>();
+
+        builder.Property(x => x.ExternalMessageId)
+            .HasMaxLength(255);
+
+        builder.Property(x => x.TriggerMessageId);
+
         // Indexes
         builder.HasIndex(x => x.RoomId)
             .HasDatabaseName("IX_ChatMessages_RoomId");
@@ -67,6 +79,16 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
 
         builder.HasIndex(x => x.IsDeleted)
             .HasDatabaseName("IX_ChatMessages_IsDeleted");
+
+        // UAI Integration Indexes
+        builder.HasIndex(x => x.MessageType)
+            .HasDatabaseName("IX_ChatMessages_MessageType");
+
+        builder.HasIndex(x => x.ExternalMessageId)
+            .HasDatabaseName("IX_ChatMessages_ExternalMessageId");
+
+        builder.HasIndex(x => x.TriggerMessageId)
+            .HasDatabaseName("IX_ChatMessages_TriggerMessageId");
 
         // Foreign key relationships (explicit configuration for clarity)
         builder.HasOne<Participant>()

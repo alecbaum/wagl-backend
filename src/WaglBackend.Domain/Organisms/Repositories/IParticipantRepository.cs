@@ -22,4 +22,9 @@ public interface IParticipantRepository : IRepository<Participant>
     Task<IEnumerable<Participant>> GetByUserIdAndSessionIdAsync(UserId userId, SessionId sessionId, CancellationToken cancellationToken = default);
     Task<IEnumerable<Participant>> GetInactiveParticipantsAsync(DateTime inactiveThreshold, CancellationToken cancellationToken = default);
     Task<IEnumerable<Participant>> GetByRoomIdAsync(RoomId roomId, CancellationToken cancellationToken = default);
+
+    // System participant methods for UAI integration
+    Task<Participant?> GetBySessionAndTypeAsync(SessionId sessionId, ParticipantType participantType, CancellationToken cancellationToken = default);
+    Task<Participant?> GetByRoomAndTypeAsync(RoomId roomId, ParticipantType participantType, CancellationToken cancellationToken = default);
+    Task<IEnumerable<Participant>> GetBySessionAndTypesAsync(SessionId sessionId, IEnumerable<ParticipantType> participantTypes, CancellationToken cancellationToken = default);
 }

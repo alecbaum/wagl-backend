@@ -13,6 +13,7 @@ public class ChatHub : Hub
     private readonly IRoomAllocationService _roomAllocationService;
     private readonly IParticipantTrackingService _participantTrackingService;
     private readonly IChatMessageService _chatMessageService;
+    private readonly IUAIIntegrationService _uaiIntegrationService;
     private readonly ILogger<ChatHub> _logger;
 
     public ChatHub(
@@ -20,12 +21,14 @@ public class ChatHub : Hub
         IRoomAllocationService roomAllocationService,
         IParticipantTrackingService participantTrackingService,
         IChatMessageService chatMessageService,
+        IUAIIntegrationService uaiIntegrationService,
         ILogger<ChatHub> logger)
     {
         _inviteManagementService = inviteManagementService;
         _roomAllocationService = roomAllocationService;
         _participantTrackingService = participantTrackingService;
         _chatMessageService = chatMessageService;
+        _uaiIntegrationService = uaiIntegrationService;
         _logger = logger;
     }
 
@@ -61,6 +64,28 @@ public class ChatHub : Hub
                         DisplayName = displayName,
                         JoinedAt = DateTime.UtcNow
                     });
+
+                // Notify UAI about user connecting
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(joinResult.ParticipantId))
+                        {
+                            var participant = await _participantTrackingService.GetByIdAsync(Guid.Parse(joinResult.ParticipantId));
+                            if (participant != null)
+                            {
+                                var uaiSessionId = _uaiIntegrationService.GetUAISessionId(participant.SessionId);
+                                var uaiRoomNumber = _uaiIntegrationService.GetUAIRoomNumber(participant.RoomId);
+                                await _uaiIntegrationService.NotifyUserConnectAsync(participant, uaiSessionId, uaiRoomNumber);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to notify UAI of user connect for participant {ParticipantId}", joinResult.ParticipantId);
+                    }
+                });
 
                 _logger.LogInformation("Participant {DisplayName} successfully joined room {RoomId}", displayName, joinResult.RoomId);
             }
@@ -140,6 +165,21 @@ public class ChatHub : Hub
                     LeftAt = DateTime.UtcNow
                 });
 
+            // Notify UAI about user disconnecting
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var uaiSessionId = _uaiIntegrationService.GetUAISessionId(participant.SessionId);
+                    var uaiRoomNumber = _uaiIntegrationService.GetUAIRoomNumber(participant.RoomId);
+                    await _uaiIntegrationService.NotifyUserDisconnectAsync(participant, uaiSessionId, uaiRoomNumber);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to notify UAI of user disconnect for participant {ParticipantId}", participant.Id);
+                }
+            });
+
             _logger.LogInformation("Participant {ParticipantId} ({DisplayName}) left room {RoomId}",
                 participant.Id, participant.DisplayName, roomId);
         }
@@ -218,6 +258,21 @@ public class ChatHub : Hub
                         DisconnectedAt = DateTime.UtcNow
                     });
 
+                // Notify UAI about user disconnecting
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var uaiSessionId = _uaiIntegrationService.GetUAISessionId(participant.SessionId);
+                        var uaiRoomNumber = _uaiIntegrationService.GetUAIRoomNumber(participant.RoomId);
+                        await _uaiIntegrationService.NotifyUserDisconnectAsync(participant, uaiSessionId, uaiRoomNumber);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to notify UAI of user disconnect for participant {ParticipantId}", participant.Id);
+                    }
+                });
+
                 _logger.LogInformation("Participant {ParticipantId} ({DisplayName}) disconnected from room {RoomId}",
                     participant.Id, participant.DisplayName, roomId);
             }
@@ -247,5 +302,150 @@ public class ChatHub : Hub
             return UserId.From(userId);
         }
         return null;
+    }
+
+    // UAI Integration Methods for Inbound Messages
+    // TODO: Placeholder methods - UAI doesn't send bot/moderator messages yet
+
+    /// <summary>
+    /// Broadcasts a moderator message to all rooms in a session
+    /// TODO: Placeholder - for when UAI sends moderator messages
+    /// </summary>
+    public async Task BroadcastModeratorMessage(SessionId sessionId, string content, string externalMessageId, Guid? triggerMessageId = null)
+    {
+        try
+        {
+            _logger.LogInformation("Broadcasting moderator message from UAI to all rooms in session {SessionId}", sessionId);
+
+            // Create the moderator message
+            var moderatorMessage = await _chatMessageService.CreateModeratorMessageAsync(
+                sessionId, content, externalMessageId, triggerMessageId);
+
+            // Get all active rooms in the session
+            var sessionRooms = await _chatMessageService.GetSessionRoomsAsync(sessionId);
+
+            // Broadcast to each room in the session
+            foreach (var roomId in sessionRooms)
+            {
+                var roomGroupName = $"Room_{roomId.Value}";
+
+                await Clients.Group(roomGroupName).SendAsync("ModeratorMessageReceived", new
+                {
+                    MessageId = moderatorMessage.Id,
+                    SessionId = moderatorMessage.SessionId,
+                    RoomId = moderatorMessage.RoomId,
+                    SenderName = moderatorMessage.SenderName,
+                    Content = moderatorMessage.Content,
+                    SentAt = moderatorMessage.SentAt,
+                    MessageType = moderatorMessage.MessageType,
+                    ExternalMessageId = moderatorMessage.ExternalMessageId,
+                    TriggerMessageId = moderatorMessage.TriggerMessageId,
+                    IsModerator = true
+                });
+
+                _logger.LogDebug("Moderator message {MessageId} broadcast to room {RoomId}",
+                    moderatorMessage.Id, roomId.Value);
+            }
+
+            _logger.LogInformation("Successfully broadcast moderator message {MessageId} to {RoomCount} rooms in session {SessionId}",
+                moderatorMessage.Id, sessionRooms.Count(), sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to broadcast moderator message to session {SessionId}", sessionId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Broadcasts a bot message to a specific room
+    /// TODO: Placeholder - for when UAI sends bot messages
+    /// </summary>
+    public async Task BroadcastBotMessage(RoomId roomId, SessionId sessionId, string content, string externalMessageId, Guid? triggerMessageId = null, string botName = "UAI Bot")
+    {
+        try
+        {
+            _logger.LogInformation("Broadcasting bot message from UAI to room {RoomId}", roomId);
+
+            // Create the bot message
+            var botMessage = await _chatMessageService.CreateBotMessageAsync(
+                roomId, sessionId, content, externalMessageId, triggerMessageId, botName);
+
+            // Broadcast to the specific room
+            var roomGroupName = $"Room_{roomId.Value}";
+
+            await Clients.Group(roomGroupName).SendAsync("BotMessageReceived", new
+            {
+                MessageId = botMessage.Id,
+                SessionId = botMessage.SessionId,
+                RoomId = botMessage.RoomId,
+                SenderName = botMessage.SenderName,
+                Content = botMessage.Content,
+                SentAt = botMessage.SentAt,
+                MessageType = botMessage.MessageType,
+                ExternalMessageId = botMessage.ExternalMessageId,
+                TriggerMessageId = botMessage.TriggerMessageId,
+                IsBot = true,
+                BotName = botName
+            });
+
+            _logger.LogInformation("Successfully broadcast bot message {MessageId} to room {RoomId}",
+                botMessage.Id, roomId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to broadcast bot message to room {RoomId}", roomId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Handles incoming moderator messages from UAI webhooks
+    /// TODO: This will be called by UAIWebhookService when UAI sends moderator messages
+    /// </summary>
+    public async Task HandleModeratorMessageFromUAI(SessionId sessionId, string content, string externalMessageId, Guid? triggerMessageId = null)
+    {
+        try
+        {
+            // Check for duplicate messages
+            if (await _chatMessageService.MessageExistsAsync(externalMessageId))
+            {
+                _logger.LogWarning("Duplicate moderator message with external ID {ExternalMessageId} ignored", externalMessageId);
+                return;
+            }
+
+            // Broadcast the moderator message to all rooms in the session
+            await BroadcastModeratorMessage(sessionId, content, externalMessageId, triggerMessageId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle moderator message from UAI for session {SessionId}", sessionId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Handles incoming bot messages from UAI webhooks
+    /// TODO: This will be called by UAIWebhookService when UAI sends bot messages
+    /// </summary>
+    public async Task HandleBotMessageFromUAI(RoomId roomId, SessionId sessionId, string content, string externalMessageId, Guid? triggerMessageId = null, string botName = "UAI Bot")
+    {
+        try
+        {
+            // Check for duplicate messages
+            if (await _chatMessageService.MessageExistsAsync(externalMessageId))
+            {
+                _logger.LogWarning("Duplicate bot message with external ID {ExternalMessageId} ignored", externalMessageId);
+                return;
+            }
+
+            // Broadcast the bot message to the specific room
+            await BroadcastBotMessage(roomId, sessionId, content, externalMessageId, triggerMessageId, botName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle bot message from UAI for room {RoomId}", roomId);
+            throw;
+        }
     }
 }

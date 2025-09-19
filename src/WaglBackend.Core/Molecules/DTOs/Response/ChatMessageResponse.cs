@@ -1,3 +1,5 @@
+using WaglBackend.Core.Atoms.Enums;
+
 namespace WaglBackend.Core.Molecules.DTOs.Response;
 
 public class ChatMessageResponse
@@ -13,6 +15,11 @@ public class ChatMessageResponse
     public string SenderName { get; set; } = string.Empty;
     public string? SenderUserId { get; set; }
     public bool IsFromCurrentUser { get; set; }
+
+    // UAI Integration Properties
+    public MessageType MessageType { get; set; } = MessageType.UserMessage;
+    public string? ExternalMessageId { get; set; }  // UAI message ID
+    public string? TriggerMessageId { get; set; }   // What message triggered this
 }
 
 public class MessageHistoryResponse

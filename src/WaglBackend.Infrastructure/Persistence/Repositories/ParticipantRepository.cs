@@ -390,4 +390,25 @@ public class ParticipantRepository : BaseRepository<Participant>, IParticipantRe
             .OrderBy(x => x.JoinedAt)
             .ToListAsync(cancellationToken);
     }
+
+    // System participant methods for UAI integration
+    public async Task<Participant?> GetBySessionAndTypeAsync(SessionId sessionId, ParticipantType participantType, CancellationToken cancellationToken = default)
+    {
+        return await Query
+            .FirstOrDefaultAsync(x => x.SessionId == sessionId && x.Type == participantType, cancellationToken);
+    }
+
+    public async Task<Participant?> GetByRoomAndTypeAsync(RoomId roomId, ParticipantType participantType, CancellationToken cancellationToken = default)
+    {
+        return await Query
+            .FirstOrDefaultAsync(x => x.RoomId == roomId && x.Type == participantType, cancellationToken);
+    }
+
+    public async Task<IEnumerable<Participant>> GetBySessionAndTypesAsync(SessionId sessionId, IEnumerable<ParticipantType> participantTypes, CancellationToken cancellationToken = default)
+    {
+        return await Query
+            .Where(x => x.SessionId == sessionId && participantTypes.Contains(x.Type))
+            .OrderBy(x => x.JoinedAt)
+            .ToListAsync(cancellationToken);
+    }
 }

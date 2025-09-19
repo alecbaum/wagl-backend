@@ -24,4 +24,11 @@ public interface IChatMessageService
     Task<int> GetRoomMessageCountAsync(RoomId roomId, CancellationToken cancellationToken = default);
     Task<IEnumerable<ChatMessageResponse>> GetRecentRoomMessagesAsync(RoomId roomId, int count = 50, CancellationToken cancellationToken = default);
     Task<double> GetAverageMessageLengthAsync(RoomId roomId, CancellationToken cancellationToken = default);
+
+    // UAI Integration Methods for Inbound Messages
+    // TODO: Placeholder methods - UAI doesn't send bot/moderator messages yet
+    Task<ChatMessageResponse> CreateModeratorMessageAsync(SessionId sessionId, string content, string externalMessageId, Guid? triggerMessageId = null, CancellationToken cancellationToken = default);
+    Task<ChatMessageResponse> CreateBotMessageAsync(RoomId roomId, SessionId sessionId, string content, string externalMessageId, Guid? triggerMessageId = null, string botName = "UAI Bot", CancellationToken cancellationToken = default);
+    Task<bool> MessageExistsAsync(string externalMessageId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<RoomId>> GetSessionRoomsAsync(SessionId sessionId, CancellationToken cancellationToken = default);
 }

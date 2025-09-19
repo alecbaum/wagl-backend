@@ -8,6 +8,7 @@ using WaglBackend.Core.Atoms.ValueObjects;
 using WaglBackend.Core.Molecules.DTOs.Request;
 using WaglBackend.Core.Molecules.DTOs.Response;
 using WaglBackend.Domain.Organisms.Repositories;
+using WaglBackend.Domain.Organisms.Services;
 using WaglBackend.Infrastructure.Services;
 using WaglBackend.Tests.Unit.Fixtures;
 using Xunit;
@@ -18,6 +19,8 @@ public class ChatMessageServiceTests
 {
     private readonly Mock<IChatMessageRepository> _mockMessageRepository;
     private readonly Mock<IParticipantRepository> _mockParticipantRepository;
+    private readonly Mock<IUAIIntegrationService> _mockUAIIntegrationService;
+    private readonly Mock<ISystemParticipantService> _mockSystemParticipantService;
     private readonly Mock<ILogger<ChatMessageService>> _mockLogger;
     private readonly ChatMessageService _service;
     private readonly Fixture _fixture;
@@ -26,10 +29,14 @@ public class ChatMessageServiceTests
     {
         _mockMessageRepository = new Mock<IChatMessageRepository>();
         _mockParticipantRepository = new Mock<IParticipantRepository>();
+        _mockUAIIntegrationService = new Mock<IUAIIntegrationService>();
+        _mockSystemParticipantService = new Mock<ISystemParticipantService>();
         _mockLogger = new Mock<ILogger<ChatMessageService>>();
         _service = new ChatMessageService(
             _mockMessageRepository.Object,
             _mockParticipantRepository.Object,
+            _mockUAIIntegrationService.Object,
+            _mockSystemParticipantService.Object,
             _mockLogger.Object);
         _fixture = new Fixture();
         _fixture.Customize(new ValueObjectCustomizations());

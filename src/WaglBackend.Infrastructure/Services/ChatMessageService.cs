@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WaglBackend.Core.Atoms.Entities;
+using WaglBackend.Core.Atoms.Enums;
 using WaglBackend.Core.Atoms.ValueObjects;
 using WaglBackend.Core.Molecules.DTOs.Request;
 using WaglBackend.Core.Molecules.DTOs.Response;
@@ -12,15 +13,21 @@ public class ChatMessageService : IChatMessageService
 {
     private readonly IChatMessageRepository _chatMessageRepository;
     private readonly IParticipantRepository _participantRepository;
+    private readonly IUAIIntegrationService _uaiIntegrationService;
+    private readonly ISystemParticipantService _systemParticipantService;
     private readonly ILogger<ChatMessageService> _logger;
 
     public ChatMessageService(
         IChatMessageRepository chatMessageRepository,
         IParticipantRepository participantRepository,
+        IUAIIntegrationService uaiIntegrationService,
+        ISystemParticipantService systemParticipantService,
         ILogger<ChatMessageService> logger)
     {
         _chatMessageRepository = chatMessageRepository;
         _participantRepository = participantRepository;
+        _uaiIntegrationService = uaiIntegrationService;
+        _systemParticipantService = systemParticipantService;
         _logger = logger;
     }
 
@@ -61,13 +68,30 @@ public class ChatMessageService : IChatMessageService
                 SessionId = participant.SessionId,
                 ParticipantId = participantId,
                 Content = request.Content.Trim(),
-                SentAt = DateTime.UtcNow
+                SentAt = DateTime.UtcNow,
+                MessageType = MessageType.UserMessage
             };
 
             await _chatMessageRepository.AddAsync(message, cancellationToken);
 
             _logger.LogInformation("Message {MessageId} sent successfully by participant {ParticipantId}",
                 message.Id, participantId);
+
+            // Send message to UAI in background (don't block user experience)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var uaiSessionId = _uaiIntegrationService.GetUAISessionId(participant.SessionId);
+                    var uaiRoomNumber = _uaiIntegrationService.GetUAIRoomNumber(participant.RoomId);
+
+                    await _uaiIntegrationService.SendMessageAsync(message, uaiSessionId, uaiRoomNumber, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send message {MessageId} to UAI - continuing without UAI integration", message.Id);
+                }
+            }, cancellationToken);
 
             return new ChatMessageResponse
             {
@@ -77,7 +101,10 @@ public class ChatMessageService : IChatMessageService
                 ParticipantId = message.ParticipantId.ToString(),
                 SenderName = participant.DisplayName,
                 Content = message.Content,
-                SentAt = message.SentAt
+                SentAt = message.SentAt,
+                MessageType = message.MessageType,
+                ExternalMessageId = message.ExternalMessageId,
+                TriggerMessageId = message.TriggerMessageId?.ToString()
             };
         }
         catch (Exception ex)
@@ -484,4 +511,168 @@ public class ChatMessageService : IChatMessageService
             return 0;
         }
     }
+
+    // UAI Integration Methods for Inbound Messages
+    // TODO: Placeholder methods - UAI doesn't send bot/moderator messages yet
+
+    /// <summary>
+    /// Creates a moderator message from UAI (sends to all rooms in session)
+    /// TODO: Placeholder - for when UAI sends moderator messages
+    /// </summary>
+    public async Task<ChatMessageResponse> CreateModeratorMessageAsync(
+        SessionId sessionId,
+        string content,
+        string externalMessageId,
+        Guid? triggerMessageId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Creating moderator message from UAI for session {SessionId}", sessionId);
+
+            // Get or create system moderator participant
+            var moderatorParticipant = await _systemParticipantService.GetOrCreateSystemModeratorAsync(sessionId, cancellationToken);
+
+            var message = new ChatMessage
+            {
+                Id = Guid.NewGuid(),
+                RoomId = RoomId.From(Guid.Empty), // Special value for session-wide messages
+                SessionId = sessionId,
+                ParticipantId = moderatorParticipant.Id,
+                Content = content.Trim(),
+                SentAt = DateTime.UtcNow,
+                MessageType = MessageType.ModeratorMessage,
+                ExternalMessageId = externalMessageId,
+                TriggerMessageId = triggerMessageId
+            };
+
+            await _chatMessageRepository.AddAsync(message, cancellationToken);
+
+            _logger.LogInformation("Moderator message {MessageId} created from UAI external message {ExternalMessageId}",
+                message.Id, externalMessageId);
+
+            return new ChatMessageResponse
+            {
+                Id = message.Id.ToString(),
+                RoomId = message.RoomId.Value.ToString(),
+                SessionId = message.SessionId.Value.ToString(),
+                ParticipantId = message.ParticipantId.ToString(),
+                SenderName = moderatorParticipant.DisplayName,
+                Content = message.Content,
+                SentAt = message.SentAt,
+                MessageType = message.MessageType,
+                ExternalMessageId = message.ExternalMessageId,
+                TriggerMessageId = message.TriggerMessageId?.ToString()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create moderator message from UAI for session {SessionId}", sessionId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Creates a bot message from UAI (sends to specific room)
+    /// TODO: Placeholder - for when UAI sends bot messages
+    /// </summary>
+    public async Task<ChatMessageResponse> CreateBotMessageAsync(
+        RoomId roomId,
+        SessionId sessionId,
+        string content,
+        string externalMessageId,
+        Guid? triggerMessageId = null,
+        string botName = "UAI Bot",
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Creating bot message from UAI for room {RoomId}", roomId);
+
+            // Get or create bot participant for this room
+            var botParticipant = await _systemParticipantService.GetOrCreateBotParticipantAsync(
+                sessionId, roomId, botName, cancellationToken);
+
+            var message = new ChatMessage
+            {
+                Id = Guid.NewGuid(),
+                RoomId = roomId,
+                SessionId = sessionId,
+                ParticipantId = botParticipant.Id,
+                Content = content.Trim(),
+                SentAt = DateTime.UtcNow,
+                MessageType = MessageType.BotMessage,
+                ExternalMessageId = externalMessageId,
+                TriggerMessageId = triggerMessageId
+            };
+
+            await _chatMessageRepository.AddAsync(message, cancellationToken);
+
+            _logger.LogInformation("Bot message {MessageId} created from UAI external message {ExternalMessageId} for room {RoomId}",
+                message.Id, externalMessageId, roomId);
+
+            return new ChatMessageResponse
+            {
+                Id = message.Id.ToString(),
+                RoomId = message.RoomId.Value.ToString(),
+                SessionId = message.SessionId.Value.ToString(),
+                ParticipantId = message.ParticipantId.ToString(),
+                SenderName = botParticipant.DisplayName,
+                Content = message.Content,
+                SentAt = message.SentAt,
+                MessageType = message.MessageType,
+                ExternalMessageId = message.ExternalMessageId,
+                TriggerMessageId = message.TriggerMessageId?.ToString()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create bot message from UAI for room {RoomId}", roomId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Checks if a message with the given external ID already exists (deduplication)
+    /// </summary>
+    public async Task<bool> MessageExistsAsync(string externalMessageId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(externalMessageId))
+                return false;
+
+            var existingMessage = await _chatMessageRepository.GetByExternalMessageIdAsync(externalMessageId, cancellationToken);
+            return existingMessage != null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check if message exists with external ID {ExternalMessageId}", externalMessageId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Gets all rooms in a session for broadcasting moderator messages
+    /// </summary>
+    public async Task<IEnumerable<RoomId>> GetSessionRoomsAsync(SessionId sessionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get all active participants in the session to find which rooms are active
+            var participants = await _participantRepository.GetActiveParticipantsBySessionAsync(sessionId, cancellationToken);
+
+            // Return unique room IDs from active participants
+            return participants
+                .Where(p => p.RoomId.Value != Guid.Empty) // Exclude session-wide participants
+                .Select(p => p.RoomId)
+                .Distinct();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get session rooms for session {SessionId}", sessionId);
+            throw;
+        }
+    }
+
 }

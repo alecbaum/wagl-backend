@@ -346,4 +346,14 @@ public class ChatMessageRepository : BaseRepository<ChatMessage>, IChatMessageRe
     {
         return await GetMessagesByRoomAsync(roomId, cancellationToken);
     }
+
+    // UAI Integration methods
+    public async Task<ChatMessage?> GetByExternalMessageIdAsync(string externalMessageId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(externalMessageId))
+            return null;
+
+        return await Query
+            .FirstOrDefaultAsync(x => x.ExternalMessageId == externalMessageId, cancellationToken);
+    }
 }

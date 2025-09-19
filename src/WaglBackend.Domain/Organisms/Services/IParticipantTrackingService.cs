@@ -9,6 +9,7 @@ public interface IParticipantTrackingService
 {
     Task<Participant> CreateParticipantAsync(RoomId roomId, SessionId sessionId, string displayName, UserId? userId = null, string? connectionId = null, CancellationToken cancellationToken = default);
     Task<ParticipantResponse?> GetParticipantAsync(Guid participantId, CancellationToken cancellationToken = default);
+    Task<Participant?> GetByIdAsync(Guid participantId, CancellationToken cancellationToken = default);
     Task<Participant?> GetParticipantByConnectionIdAsync(string connectionId, CancellationToken cancellationToken = default);
     Task<IEnumerable<ParticipantResponse>> GetParticipantsByRoomAsync(RoomId roomId, CancellationToken cancellationToken = default);
     Task<IEnumerable<ParticipantResponse>> GetActiveParticipantsByRoomAsync(RoomId roomId, CancellationToken cancellationToken = default);
