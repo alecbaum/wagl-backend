@@ -16,7 +16,7 @@ This is a .NET Core 9 Web API project implementing a hybrid authentication syste
 
 - **Framework**: .NET Core 9 Web API
 - **Database**: PostgreSQL
-- **Cache**: Redis
+- **Cache**: AWS ElastiCache Serverless (ValKey)
 - **Authentication**: Hybrid (.NET Identity + Custom API Key)
 - **Architecture**: Atomic Design Pattern
 
@@ -197,6 +197,97 @@ Rate limiting implemented via middleware with Redis backing for distributed scen
 - Development: Swagger UI, detailed logging
 - Production: Security headers, minimal logging
 
+## AWS ElastiCache Serverless Troubleshooting Rules
+
+### Critical Requirements for AWS ElastiCache Serverless (ValKey/Redis)
+
+**MANDATORY RULE**: AWS ElastiCache Serverless **REQUIRES** TLS encryption by default. This is non-negotiable and must be included in all connection strings.
+
+#### Connection String Requirements
+
+1. **TLS is Mandatory**: All ElastiCache Serverless connections must use `ssl=true`
+2. **Dual Port Architecture**:
+   - Port 6379: Write operations
+   - Port 6380: Read operations (used by SignalR)
+3. **AbortConnect=false**: Recommended for better connection resilience
+
+**Correct Connection String Format**:
+```
+wagl-backend-cache-ggfeqp.serverless.use1.cache.amazonaws.com:6379,ssl=true,abortConnect=false
+```
+
+#### StackExchange.Redis Configuration
+
+For .NET applications using StackExchange.Redis:
+```csharp
+var configurationOptions = new ConfigurationOptions
+{
+    EndPoints = { { "cache-endpoint.amazonaws.com", 6379 } },
+    Ssl = true,
+    AbortOnConnectFail = false // Required for serverless
+};
+```
+
+#### SignalR Configuration
+
+SignalR requires additional configuration for dual-port architecture. SignalR uses port 6380 for subscriptions and may need special handling.
+
+### Troubleshooting Decision Tree
+
+1. **Connection Timeouts**:
+   - ✅ First check: Is `ssl=true` in connection string?
+   - ✅ Second check: Is `abortConnect=false` set?
+   - ❌ Don't assume network/security group issues first
+
+2. **"UnableToConnect" Errors**:
+   - ✅ Check if error mentions port 6380 (SignalR subscriptions)
+   - ✅ Verify TLS certificate validation
+   - ❌ Don't repeatedly try different security group configurations
+
+3. **Health Check Failures**:
+   - ✅ Verify TLS is enabled in health check configuration
+   - ✅ Check if main Redis connection works but SignalR subscription fails
+   - ❌ Don't assume the entire Redis connection is broken
+
+### Key Lessons Learned
+
+1. **Research First**: Always understand AWS service requirements before troubleshooting
+2. **AWS Serverless = TLS Mandatory**: ElastiCache Serverless enforces TLS by default
+3. **Read Error Messages Carefully**: Port numbers in errors provide critical clues
+4. **Stop Repeating Failed Approaches**: When the same fix doesn't work, step back and research
+5. **Trust Official Documentation**: AWS docs clearly state TLS requirements for Serverless
+6. **Dual Port Awareness**: SignalR may fail on port 6380 even when main connection on 6379 works
+
+### Entity Framework Troubleshooting Rules
+
+#### LINQ Translation Errors
+
+When encountering "Translation of method failed" errors:
+
+1. **DateTime.Add() Operations**: Cannot be translated to SQL
+   ```csharp
+   // ❌ This will fail in LINQ queries
+   .Where(x => x.StartedAt.Value.Add(x.Duration) < cutoffTime)
+
+   // ✅ Use client-side evaluation instead
+   var activeSessions = await Query.Where(x => x.Status == Status.Active).ToListAsync();
+   var filtered = activeSessions.Where(x => x.StartedAt.Value.Add(x.Duration) < cutoffTime);
+   ```
+
+2. **Complex Calculations**: Move to client-side when EF Core cannot translate
+
+#### PostgreSQL JSON Serialization
+
+For JSONB columns with complex types:
+```csharp
+// ✅ Explicit JSON conversion required
+builder.Property(p => p.AllowedIpAddresses)
+    .HasColumnType("jsonb")
+    .HasConversion(
+        v => v == null ? null : JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+        v => v == null ? null : JsonSerializer.Deserialize<string[]>(v, (JsonSerializerOptions?)null));
+```
+
 ## Multi-Agent System
 
 This project uses a comprehensive multi-agent system for rapid development within 6-day sprint cycles:
@@ -265,4 +356,4 @@ Agents are configured for the .NET Core 9 Web API architecture and follow the At
 **Key Infrastructure Endpoints (Always reference INFRASTRUCTURE.md for current values):**
 - **Application URL**: `http://wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com`
 - **Database Endpoint**: `wagl-backend-aurora.cluster-cexeows4418s.us-east-1.rds.amazonaws.com:5432`
-- **Cache Endpoint**: `wagl-backend-cache.serverless.use1.cache.amazonaws.com:6379`
+- **Cache Endpoint**: `wagl-backend-cache-ggfeqp.serverless.use1.cache.amazonaws.com:6379` (TLS required)

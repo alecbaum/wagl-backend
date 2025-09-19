@@ -62,12 +62,15 @@ public class ChatSessionRepository : BaseRepository<ChatSession>, IChatSessionRe
 
     public async Task<IEnumerable<ChatSession>> GetActiveSessionsDueForEndAsync(DateTime currentTime, CancellationToken cancellationToken = default)
     {
-        return await Query
+        // Get all active sessions and filter client-side due to EF translation limitations
+        var activeSessions = await Query
             .Where(x => x.Status == SessionStatus.Active &&
-                       x.StartedAt != null &&
-                       x.StartedAt.Value.Add(x.Duration) <= currentTime)
+                       x.StartedAt != null)
             .OrderBy(x => x.StartedAt)
             .ToListAsync(cancellationToken);
+
+        return activeSessions
+            .Where(x => x.StartedAt!.Value.Add(x.Duration) <= currentTime);
     }
 
     public async Task<IEnumerable<ChatSession>> GetSessionsByDateRangeAsync(DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
@@ -82,13 +85,25 @@ public class ChatSessionRepository : BaseRepository<ChatSession>, IChatSessionRe
     public async Task<IEnumerable<ChatSession>> GetExpiredSessionsAsync(CancellationToken cancellationToken = default)
     {
         var currentTime = DateTime.UtcNow;
-        return await Query
-            .Where(x => (x.Status == SessionStatus.Scheduled &&
-                        x.ScheduledStartTime.AddHours(24) < currentTime) ||
-                       (x.Status == SessionStatus.Active &&
-                        x.StartedAt != null &&
-                        x.StartedAt.Value.Add(x.Duration).AddHours(1) < currentTime))
+        var scheduledCutoff = currentTime.AddHours(-24);
+        var activeCutoff = currentTime.AddHours(-1);
+
+        // Get sessions that need client-side evaluation for duration calculation
+        var activeSessions = await Query
+            .Where(x => x.Status == SessionStatus.Active &&
+                       x.StartedAt != null)
             .ToListAsync(cancellationToken);
+
+        var scheduledExpiredSessions = await Query
+            .Where(x => x.Status == SessionStatus.Scheduled &&
+                       x.ScheduledStartTime < scheduledCutoff)
+            .ToListAsync(cancellationToken);
+
+        // Filter active sessions client-side where EF can't translate the Add operation
+        var activeExpiredSessions = activeSessions
+            .Where(x => x.StartedAt!.Value.Add(x.Duration) < activeCutoff);
+
+        return scheduledExpiredSessions.Concat(activeExpiredSessions);
     }
 
     public async Task<int> GetActiveSessionCountAsync(CancellationToken cancellationToken = default)
@@ -168,13 +183,22 @@ public class ChatSessionRepository : BaseRepository<ChatSession>, IChatSessionRe
 
     public async Task<IEnumerable<ChatSession>> GetExpiredSessionsAsync(DateTime cutoffTime, CancellationToken cancellationToken = default)
     {
-        return await Query
-            .Where(x => (x.Status == SessionStatus.Scheduled &&
-                        x.ScheduledStartTime < cutoffTime) ||
-                       (x.Status == SessionStatus.Active &&
-                        x.StartedAt != null &&
-                        x.StartedAt.Value.Add(x.Duration) < cutoffTime))
+        // Get sessions that need client-side evaluation for duration calculation
+        var activeSessions = await Query
+            .Where(x => x.Status == SessionStatus.Active &&
+                       x.StartedAt != null)
             .ToListAsync(cancellationToken);
+
+        var scheduledExpiredSessions = await Query
+            .Where(x => x.Status == SessionStatus.Scheduled &&
+                       x.ScheduledStartTime < cutoffTime)
+            .ToListAsync(cancellationToken);
+
+        // Filter active sessions client-side where EF can't translate the Add operation
+        var activeExpiredSessions = activeSessions
+            .Where(x => x.StartedAt!.Value.Add(x.Duration) < cutoffTime);
+
+        return scheduledExpiredSessions.Concat(activeExpiredSessions);
     }
 
     public async Task<IEnumerable<ChatSession>> GetCompletedSessionsBeforeAsync(DateTime cutoffDate, CancellationToken cancellationToken = default)

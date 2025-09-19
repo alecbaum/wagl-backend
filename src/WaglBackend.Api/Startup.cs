@@ -130,13 +130,30 @@ public class Startup
         })
         .AddStackExchangeRedis(options =>
         {
-            // Configure Redis backplane
+            // Configure Redis backplane for ElastiCache Serverless
             options.ConnectionFactory = async writer =>
             {
                 var redisConnectionString = Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+
+                // Parse and ensure SSL is properly configured
                 var config = StackExchange.Redis.ConfigurationOptions.Parse(redisConnectionString);
+
+                // Essential settings for ElastiCache Serverless
                 config.ChannelPrefix = RedisChannel.Literal("wagl:signalr:");
                 config.AbortOnConnectFail = false;
+
+                // Force TLS for ElastiCache Serverless - connection string parsing might not preserve SSL
+                if (redisConnectionString.Contains("serverless.use1.cache.amazonaws.com") ||
+                    redisConnectionString.Contains("ssl=true"))
+                {
+                    config.Ssl = true;
+                    config.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+
+                    // Log the configuration for debugging
+                    writer?.WriteLine($"SignalR Redis: Configuring SSL for ElastiCache Serverless");
+                    writer?.WriteLine($"Connection string: {redisConnectionString}");
+                    writer?.WriteLine($"SSL enabled: {config.Ssl}");
+                }
 
                 return await StackExchange.Redis.ConnectionMultiplexer.ConnectAsync(config, writer);
             };

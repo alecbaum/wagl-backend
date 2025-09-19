@@ -125,14 +125,19 @@ This document contains comprehensive information about all AWS infrastructure co
 - **Container Insights**: Disabled
 
 ### Task Definition
-- **ARN**: `arn:aws:ecs:us-east-1:108367188859:task-definition/wagl-backend-api:3`
+- **ARN**: `arn:aws:ecs:us-east-1:108367188859:task-definition/wagl-backend-api:5`
 - **Family**: wagl-backend-api
-- **Revision**: 3 (Current)
+- **Revision**: 5 (Current - with TLS fixes)
 - **Network Mode**: awsvpc
 - **Requires Compatibilities**: FARGATE
 - **CPU**: 256
 - **Memory**: 512
 - **Execution Role**: arn:aws:iam::108367188859:role/wagl-backend-ecs-execution-role
+- **Key Updates in Revision 5**:
+  - Enhanced Redis connection string with TLS: `ssl=true,abortConnect=false`
+  - PostgreSQL JSON serialization fixes applied
+  - SignalR TLS configuration for ElastiCache Serverless
+  - Production-ready environment variables
 
 #### Container Definition
 - **Name**: wagl-backend-api
@@ -145,13 +150,15 @@ This document contains comprehensive information about all AWS infrastructure co
 - **ARN**: `arn:aws:ecs:us-east-1:108367188859:service/wagl-backend-cluster/wagl-backend-service`
 - **Name**: wagl-backend-service
 - **Cluster**: wagl-backend-cluster
-- **Task Definition**: wagl-backend-api:3
+- **Task Definition**: wagl-backend-api:5 (Updated with TLS fixes)
 - **Desired Count**: 1
 - **Launch Type**: FARGATE
 - **Platform Version**: LATEST
 - **Subnets**: subnet-00f9ba3449886f8f3, subnet-02963cc40eb5866a3
 - **Security Groups**: sg-0ed7714fe63508850
 - **Public IP**: DISABLED
+- **Service Status**: STABLE (Healthy after TLS fixes)
+- **Tasks Running**: 1/1 healthy
 
 ### Auto Scaling Configuration
 - **Scalable Target ARN**: `arn:aws:application-autoscaling:us-east-1:108367188859:scalable-target/0ec5c95b4d27379947b2bd9005a85cdb5924`
@@ -224,9 +231,12 @@ This document contains comprehensive information about all AWS infrastructure co
 - **Name**: wagl-backend-cache
 - **Engine**: valkey
 - **Major Engine Version**: 8
-- **Endpoint**: `wagl-backend-cache.serverless.use1.cache.amazonaws.com:6379`
+- **Endpoint**: `wagl-backend-cache-ggfeqp.serverless.use1.cache.amazonaws.com:6379`
 - **Security Groups**: sg-09f0cb6c27a3e83f9
 - **Subnets**: subnet-00f9ba3449886f8f3, subnet-02963cc40eb5866a3
+- **TLS Encryption**: MANDATORY (ElastiCache Serverless requirement)
+- **Connection Status**: Healthy (TLS properly configured)
+- **SignalR Backplane**: Configured with TLS support
 
 ### Cache Usage Limits
 - **Data Storage**: 1 GB Maximum
@@ -292,10 +302,12 @@ Auto-scaling alarms are automatically created by Application Auto Scaling:
 Host=wagl-backend-aurora.cluster-cexeows4418s.us-east-1.rds.amazonaws.com;Database=waglbackend;Username=postgres;Password=WaglBackend2024!
 ```
 
-### Redis Connection
+### Redis Connection (TLS Required)
 ```
-wagl-backend-cache.serverless.use1.cache.amazonaws.com:6379
+wagl-backend-cache-ggfeqp.serverless.use1.cache.amazonaws.com:6379,ssl=true,abortConnect=false
 ```
+
+**CRITICAL**: ElastiCache Serverless (ValKey) requires TLS encryption for all connections. The application automatically detects ElastiCache Serverless endpoints and enables TLS with SslProtocols.Tls12.
 
 ### Office Access
 - **Office IP**: 47.190.70.197 (Whitelisted for PostgreSQL and Redis access)
@@ -363,6 +375,12 @@ All resources are tagged with:
 10. **Authentication**: Aurora master password reset and database connectivity verified
 11. **VPN Access**: OpenVPN server deployed for secure database/cache access from anywhere
 12. **User Management**: Automated certificate management and user provisioning scripts installed
+13. **TLS Configuration**: ElastiCache Serverless TLS properly configured (Task Definition v5)
+14. **JSON Serialization**: PostgreSQL dynamic JSON serialization issues resolved
+15. **SignalR**: Redis backplane configured with mandatory TLS for ElastiCache Serverless
+16. **Health Checks**: All endpoints healthy - /health returning 200 OK
+17. **LINQ Translation**: Entity Framework DateTime.Add issues resolved with client-side evaluation
+18. **Production Status**: Fully operational as of 2025-09-19
 
 ## 🔄 Maintenance Windows
 
@@ -372,6 +390,40 @@ All resources are tagged with:
 
 ---
 
-**Last Updated**: 2025-09-17
-**Infrastructure Version**: 1.1
+## 🛠️ Technical Implementation Details
+
+### Recent Critical Fixes (2025-09-19)
+
+#### PostgreSQL JSON Serialization Resolution
+- **Issue**: `Type 'String[]' required dynamic JSON serialization, which requires an explicit opt-in`
+- **Root Cause**: Provider entity's AllowedIpAddresses (string array) couldn't serialize to JSONB
+- **Solution**: Added explicit JSON conversion in ProviderConfiguration.cs
+- **Code Location**: `src/WaglBackend.Infrastructure/Persistence/Configurations/ProviderConfiguration.cs`
+
+#### ElastiCache Serverless TLS Configuration
+- **Issue**: SignalR Redis backplane failing on TLS connections
+- **Root Cause**: ElastiCache Serverless requires mandatory TLS encryption
+- **Solution**: Enhanced SignalR configuration to auto-detect ElastiCache Serverless and enable TLS
+- **Code Location**: `src/WaglBackend.Api/Startup.cs:131-160`
+- **Connection String Format**: `wagl-backend-cache-ggfeqp.serverless.use1.cache.amazonaws.com:6379,ssl=true,abortConnect=false`
+
+#### LINQ Translation Fixes
+- **Issue**: `Translation of method 'System.DateTime.Add' failed`
+- **Root Cause**: Entity Framework couldn't translate DateTime.Add(TimeSpan) to SQL
+- **Solution**: Modified repository methods for client-side evaluation of duration calculations
+- **Code Location**: `src/WaglBackend.Infrastructure/Persistence/Repositories/ChatSessionRepository.cs`
+
+### Key Lessons Learned
+1. **ElastiCache Serverless Requirement**: ALL connections must use TLS (ssl=true)
+2. **PostgreSQL Arrays**: Require explicit JSON conversion for EF Core JSONB mapping
+3. **SignalR Configuration**: Must detect AWS ElastiCache endpoints and configure TLS automatically
+4. **Startup Configuration**: Service registration order matters for dependency injection
+5. **Task Definition Management**: Environment variables must include proper TLS connection strings
+
+---
+
+**Last Updated**: 2025-09-19
+**Infrastructure Version**: 1.2
 **Deployment Region**: us-east-1
+**Current Task Definition**: wagl-backend-api:5
+**Application Status**: Fully Operational

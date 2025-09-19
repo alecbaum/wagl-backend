@@ -49,9 +49,12 @@ public class ProviderConfiguration : IEntityTypeConfiguration<Provider>
                 .HasFilter("\"ApiKeyValue\" IS NOT NULL");
         });
 
-        // Configure AllowedIpAddresses as JSON column
+        // Configure AllowedIpAddresses as JSON column with proper conversion
         builder.Property(p => p.AllowedIpAddresses)
-            .HasColumnType("jsonb");
+            .HasColumnType("jsonb")
+            .HasConversion(
+                v => v == null ? null : System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                v => v == null ? null : System.Text.Json.JsonSerializer.Deserialize<string[]>(v, (System.Text.Json.JsonSerializerOptions?)null));
 
         // Configure relationships
         builder.HasMany(p => p.ApiUsageLogs)
