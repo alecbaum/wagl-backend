@@ -42,17 +42,22 @@ public static class ServiceCollectionExtensions
             configuration.GetSection(UAIConfiguration.SectionName));
 
         // Register Entity Framework DbContext
-        services.AddDbContext<ApplicationDbContext>(options =>
+        // Configure Npgsql data source for dynamic JSON serialization
+        var connectionString = configuration.GetConnectionString("PostgreSQL");
+        var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+        dataSourceBuilder.EnableDynamicJson();
+        services.AddSingleton(dataSourceBuilder.Build());
+
+        services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
-            var connectionString = configuration.GetConnectionString("PostgreSQL");
-            options.UseNpgsql(connectionString, npgsqlOptions =>
+            var dataSource = serviceProvider.GetRequiredService<Npgsql.NpgsqlDataSource>();
+            options.UseNpgsql(dataSource, npgsqlOptions =>
             {
                 npgsqlOptions.MigrationsAssembly("WaglBackend.Infrastructure");
                 npgsqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 3,
                     maxRetryDelay: TimeSpan.FromSeconds(30),
                     errorCodesToAdd: null);
-                npgsqlOptions.EnableDynamicJson();
             });
 
             // Configure for development/production
