@@ -44,32 +44,53 @@ public class SessionCleanupBackgroundService : BackgroundService
 
     private async Task PerformCleanupAsync(CancellationToken cancellationToken)
     {
-        using var scope = _serviceProvider.CreateScope();
-        var sessionRepository = scope.ServiceProvider.GetRequiredService<IChatSessionRepository>();
-        var participantRepository = scope.ServiceProvider.GetRequiredService<IParticipantRepository>();
-        var roomRepository = scope.ServiceProvider.GetRequiredService<IChatRoomRepository>();
-        var messageRepository = scope.ServiceProvider.GetRequiredService<IChatMessageRepository>();
-        var inviteRepository = scope.ServiceProvider.GetRequiredService<ISessionInviteRepository>();
-
         var currentTime = DateTime.UtcNow;
         var cleanupTasks = new List<Task>();
 
+        // Each cleanup task gets its own scope to avoid DbContext threading issues
         // 1. Clean up expired sessions
-        cleanupTasks.Add(CleanupExpiredSessionsAsync(sessionRepository, currentTime, cancellationToken));
+        cleanupTasks.Add(Task.Run(async () =>
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var sessionRepository = scope.ServiceProvider.GetRequiredService<IChatSessionRepository>();
+            await CleanupExpiredSessionsAsync(sessionRepository, currentTime, cancellationToken);
+        }, cancellationToken));
 
         // 2. Clean up inactive participants (disconnected for more than 30 minutes)
-        cleanupTasks.Add(CleanupInactiveParticipantsAsync(participantRepository, currentTime, cancellationToken));
+        cleanupTasks.Add(Task.Run(async () =>
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var participantRepository = scope.ServiceProvider.GetRequiredService<IParticipantRepository>();
+            await CleanupInactiveParticipantsAsync(participantRepository, currentTime, cancellationToken);
+        }, cancellationToken));
 
         // 3. Clean up empty rooms
-        cleanupTasks.Add(CleanupEmptyRoomsAsync(roomRepository, participantRepository, cancellationToken));
+        cleanupTasks.Add(Task.Run(async () =>
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var roomRepository = scope.ServiceProvider.GetRequiredService<IChatRoomRepository>();
+            var participantRepository = scope.ServiceProvider.GetRequiredService<IParticipantRepository>();
+            await CleanupEmptyRoomsAsync(roomRepository, participantRepository, cancellationToken);
+        }, cancellationToken));
 
         // 4. Clean up old messages (older than 7 days for completed sessions)
-        cleanupTasks.Add(CleanupOldMessagesAsync(messageRepository, sessionRepository, currentTime, cancellationToken));
+        cleanupTasks.Add(Task.Run(async () =>
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var messageRepository = scope.ServiceProvider.GetRequiredService<IChatMessageRepository>();
+            var sessionRepository = scope.ServiceProvider.GetRequiredService<IChatSessionRepository>();
+            await CleanupOldMessagesAsync(messageRepository, sessionRepository, currentTime, cancellationToken);
+        }, cancellationToken));
 
         // 5. Clean up expired invites
-        cleanupTasks.Add(CleanupExpiredInvitesAsync(inviteRepository, currentTime, cancellationToken));
+        cleanupTasks.Add(Task.Run(async () =>
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var inviteRepository = scope.ServiceProvider.GetRequiredService<ISessionInviteRepository>();
+            await CleanupExpiredInvitesAsync(inviteRepository, currentTime, cancellationToken);
+        }, cancellationToken));
 
-        // Execute all cleanup tasks concurrently
+        // Execute all cleanup tasks concurrently, each with its own DbContext scope
         await Task.WhenAll(cleanupTasks);
 
         _logger.LogInformation("Session cleanup completed at: {time}", DateTimeOffset.Now);

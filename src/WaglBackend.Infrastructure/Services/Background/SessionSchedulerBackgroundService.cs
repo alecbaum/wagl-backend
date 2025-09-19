@@ -44,12 +44,28 @@ public class SessionSchedulerBackgroundService : BackgroundService
 
     private async Task CheckAndStartScheduledSessionsAsync(CancellationToken cancellationToken)
     {
+        var currentTime = DateTime.UtcNow;
+
+        try
+        {
+            // First, check for sessions to start (separate scope)
+            await CheckSessionsToStartAsync(currentTime, cancellationToken);
+
+            // Then, check for sessions to end (separate scope to avoid DbContext conflicts)
+            await CheckSessionsToEndAsync(currentTime, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking scheduled sessions");
+        }
+    }
+
+    private async Task CheckSessionsToStartAsync(DateTime currentTime, CancellationToken cancellationToken)
+    {
         using var scope = _serviceProvider.CreateScope();
         var sessionRepository = scope.ServiceProvider.GetRequiredService<IChatSessionRepository>();
         var chatSessionService = scope.ServiceProvider.GetRequiredService<IChatSessionService>();
         var roomAllocationService = scope.ServiceProvider.GetRequiredService<IRoomAllocationService>();
-
-        var currentTime = DateTime.UtcNow;
 
         try
         {
@@ -74,13 +90,26 @@ public class SessionSchedulerBackgroundService : BackgroundService
                     _logger.LogError(ex, "Failed to start scheduled session: {SessionId}", session.Id);
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking sessions to start");
+        }
+    }
 
-            // Check for sessions that should auto-end
+    private async Task CheckSessionsToEndAsync(DateTime currentTime, CancellationToken cancellationToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var sessionRepository = scope.ServiceProvider.GetRequiredService<IChatSessionRepository>();
+        var chatSessionService = scope.ServiceProvider.GetRequiredService<IChatSessionService>();
+
+        try
+        {
             await CheckAndEndExpiredSessionsAsync(sessionRepository, chatSessionService, currentTime, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking scheduled sessions");
+            _logger.LogError(ex, "Error checking sessions to end");
         }
     }
 
