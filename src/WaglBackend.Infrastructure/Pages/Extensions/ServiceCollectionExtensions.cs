@@ -52,6 +52,7 @@ public static class ServiceCollectionExtensions
                     maxRetryCount: 3,
                     maxRetryDelay: TimeSpan.FromSeconds(30),
                     errorCodesToAdd: null);
+                npgsqlOptions.EnableDynamicJson();
             });
 
             // Configure for development/production
