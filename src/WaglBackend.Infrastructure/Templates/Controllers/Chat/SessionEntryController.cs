@@ -13,7 +13,7 @@ namespace WaglBackend.Infrastructure.Templates.Controllers.Chat;
 /// Handles anonymous user entry into chat sessions via unique URLs
 /// </summary>
 [ApiController]
-[Route("api/v{version:apiVersion}/[controller]")]
+[Route("api/v{version:apiVersion}/sessionentry")]
 [AllowAnonymous]
 public class SessionEntryController : BaseApiController
 {
