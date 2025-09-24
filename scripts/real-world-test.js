@@ -18,12 +18,12 @@ const { v4: uuidv4 } = require('uuid');
 
 // Configuration
 const config = {
-    baseUrl: 'http://api.wagl.ai',
-    hubUrl: 'http://api.wagl.ai/chathub',
+    baseUrl: 'http://wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com',
+    hubUrl: 'http://wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com/chathub',
     adminUser: {
-        email: 'admin@wagl.ai',
-        password: 'AdminPass123#',
-        displayName: 'Admin'
+        email: 'testadmin2@wagl.ai',
+        password: 'TestAdmin123@',
+        displayName: 'Test Admin2'
     },
     anonymousUsers: [
         { email: 'alice@test.com', displayName: 'Alice' },
@@ -107,7 +107,7 @@ const setupAdminAndSession = async () => {
             password: config.adminUser.password
         });
 
-        testState.adminToken = authResponse.token;
+        testState.adminToken = authResponse.accessToken;
         log('✅ Admin authenticated successfully');
 
         // Create a session

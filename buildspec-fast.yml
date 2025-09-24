@@ -1,0 +1,53 @@
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=build-$(date +%Y%m%d%H%M%S)-${COMMIT_HASH}
+      - echo Pulling existing image for layer caching...
+      - docker pull $REPOSITORY_URI:latest || echo "No previous image found, building from scratch"
+      - docker pull $REPOSITORY_URI:cache-base || echo "No base cache found"
+      - docker pull $REPOSITORY_URI:cache-deps || echo "No deps cache found"
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image with layer caching...
+      # Build with cache from previous layers
+      - docker build
+        --cache-from $REPOSITORY_URI:cache-base
+        --cache-from $REPOSITORY_URI:cache-deps
+        --cache-from $REPOSITORY_URI:latest
+        -t $IMAGE_REPO_NAME:latest
+        -t $REPOSITORY_URI:latest
+        -t $REPOSITORY_URI:$IMAGE_TAG .
+      # Create intermediate cache images for faster future builds
+      - echo "Creating cache layers..."
+      - docker build --target deps-stage -t $REPOSITORY_URI:cache-deps . || echo "No deps stage defined"
+      - docker build --target base-stage -t $REPOSITORY_URI:cache-base . || echo "No base stage defined"
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images and cache layers...
+      # Push in parallel for speed
+      - docker push $REPOSITORY_URI:latest &
+      - docker push $REPOSITORY_URI:$IMAGE_TAG &
+      - docker push $REPOSITORY_URI:cache-base &
+      - docker push $REPOSITORY_URI:cache-deps &
+      - wait # Wait for all pushes to complete
+      - echo Writing image definitions file...
+      - printf '[{"name":"wagl-backend-api","imageUri":"%s"}]' $REPOSITORY_URI:latest > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+
+cache:
+  paths:
+    - '/var/lib/docker/**/*'  # Cache Docker layers locally

@@ -68,10 +68,11 @@ public class AuthenticationModule : IModule
                     {
                         var token = authorization.Substring("Bearer ".Length).Trim();
                         
-                        // JWT tokens typically contain dots and are longer
-                        if (token.Contains(".") && token.Length > 100)
+                        // JWT tokens have exactly 2 dots (3 parts: header.payload.signature)
+                        var parts = token.Split('.');
+                        if (parts.Length == 3)
                             return "JwtBearer";
-                        
+
                         return "ApiKey";
                     }
                     

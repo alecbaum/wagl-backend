@@ -1,0 +1,48 @@
+# Use the official .NET 9 runtime as a parent image
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+WORKDIR /app
+EXPOSE 80
+EXPOSE 443
+# This base layer rarely changes, so it will be cached
+
+# Use the .NET 9 SDK for building
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS base-stage
+WORKDIR /src
+# Install any global tools or dependencies here that rarely change
+RUN dotnet --version
+
+# Dependencies layer - only changes when .csproj files change
+FROM base-stage AS deps-stage
+# Copy ONLY the project files first for dependency restoration
+COPY ["src/WaglBackend.Api/WaglBackend.Api.csproj", "src/WaglBackend.Api/"]
+COPY ["src/WaglBackend.Infrastructure/WaglBackend.Infrastructure.csproj", "src/WaglBackend.Infrastructure/"]
+COPY ["src/WaglBackend.Domain/WaglBackend.Domain.csproj", "src/WaglBackend.Domain/"]
+COPY ["src/WaglBackend.Core/WaglBackend.Core.csproj", "src/WaglBackend.Core/"]
+COPY ["global.json", "./"]
+
+# This layer will be cached unless dependencies change
+RUN dotnet restore "src/WaglBackend.Api/WaglBackend.Api.csproj"
+
+# Build stage - changes when source code changes
+FROM deps-stage AS build
+# Copy the source code (this layer changes frequently)
+COPY . .
+WORKDIR "/src/src/WaglBackend.Api"
+
+# Build the application
+RUN dotnet build "WaglBackend.Api.csproj" -c Release -o /app/build --no-restore
+
+# Publish stage
+FROM build AS publish
+RUN dotnet publish "WaglBackend.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore
+
+# Final runtime stage
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+
+# Add health check for faster deployment detection
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:80/health || exit 1
+
+ENTRYPOINT ["dotnet", "WaglBackend.Api.dll"]
