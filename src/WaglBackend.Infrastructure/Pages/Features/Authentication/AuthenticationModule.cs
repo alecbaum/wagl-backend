@@ -13,11 +13,11 @@ public class AuthenticationModule : IModule
 {
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Register authentication services (would be implemented)
-        // services.AddScoped<IUserAuthService, UserAuthService>();
-        // services.AddScoped<IProviderAuthService, ProviderAuthService>();
-        // services.AddScoped<IApiKeyService, ApiKeyService>();
-        // services.AddScoped<IJwtService, JwtService>();
+        // Register authentication services
+        services.AddScoped<IUserAuthService, WaglBackend.Infrastructure.Services.Authentication.UserAuthService>();
+        // services.AddScoped<IProviderAuthService, ProviderAuthService>(); // Not implemented yet
+        // services.AddScoped<IApiKeyService, ApiKeyService>(); // Not implemented yet
+        services.AddScoped<IJwtService, WaglBackend.Infrastructure.Services.Authentication.JwtService>();
 
         var jwtConfig = configuration.GetSection(JwtConfiguration.SectionName).Get<JwtConfiguration>();
         
