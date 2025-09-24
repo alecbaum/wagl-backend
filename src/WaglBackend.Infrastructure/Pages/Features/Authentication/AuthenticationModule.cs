@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using WaglBackend.Core.Atoms.Constants;
 using WaglBackend.Core.Molecules.Configurations;
+using WaglBackend.Domain.Organisms.Services.Authentication;
 using WaglBackend.Infrastructure.Pages.Extensions;
 
 namespace WaglBackend.Infrastructure.Pages.Features.Authentication;
