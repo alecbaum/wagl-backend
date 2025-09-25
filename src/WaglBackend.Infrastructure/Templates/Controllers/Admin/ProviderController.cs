@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Asp.Versioning;
 using WaglBackend.Core.Molecules.DTOs.Request;
 using WaglBackend.Core.Molecules.DTOs.Response;
+using WaglBackend.Domain.Organisms.Services;
 using WaglBackend.Domain.Organisms.Services.Authentication;
 using WaglBackend.Infrastructure.Templates.Controllers.Base;
 using WaglBackend.Infrastructure.Templates.Authorization;
@@ -20,14 +21,15 @@ namespace WaglBackend.Infrastructure.Templates.Controllers.Admin;
 public class ProviderController : BaseApiController
 {
     private readonly IApiKeyService _apiKeyService;
-    // TODO: Add IProviderService when implemented
+    private readonly IProviderService _providerService;
 
     public ProviderController(
         IApiKeyService apiKeyService,
+        IProviderService providerService,
         ILogger<ProviderController> logger) : base(logger)
     {
         _apiKeyService = apiKeyService;
-        // TODO: Inject IProviderService
+        _providerService = providerService;
     }
 
     /// <summary>
@@ -40,27 +42,12 @@ public class ProviderController : BaseApiController
     {
         try
         {
-            // TODO: Implement actual provider creation
-            // For now, return a placeholder response indicating the endpoint exists
-            // but needs full implementation
-
-            Logger.LogWarning("CreateProvider endpoint called but not fully implemented yet. Request: {Request}",
-                System.Text.Json.JsonSerializer.Serialize(request));
-
-            return StatusCode(501, new {
-                error = "NOT_IMPLEMENTED",
-                message = "Provider creation not yet implemented. Please check TODO.md for implementation status."
-            });
-
-            // TODO: Uncomment when IProviderService is implemented
-            /*
             var provider = await _providerService.CreateProviderAsync(request, cancellationToken);
 
             Logger.LogInformation("Provider created: {ProviderId} by admin {UserId}",
                 provider.Id, GetUserId());
 
             return Ok(provider);
-            */
         }
         catch (ArgumentException ex)
         {
@@ -89,18 +76,11 @@ public class ProviderController : BaseApiController
                 return BadRequest(new { error = "NOT_PROVIDER", message = "This endpoint is for providers only" });
             }
 
-            // TODO: Implement actual provider profile retrieval
-            Logger.LogWarning("GetMyProfile endpoint called but not fully implemented yet for provider: {UserId}",
-                GetUserId());
+            if (!Guid.TryParse(GetUserId(), out var providerId))
+            {
+                return BadRequest(new { error = "INVALID_USER_ID", message = "Invalid user ID format" });
+            }
 
-            return StatusCode(501, new {
-                error = "NOT_IMPLEMENTED",
-                message = "Provider profile retrieval not yet implemented. Please check TODO.md for implementation status."
-            });
-
-            // TODO: Uncomment when IProviderService is implemented
-            /*
-            var providerId = GetUserId();
             var provider = await _providerService.GetProviderByIdAsync(providerId, cancellationToken);
 
             if (provider == null)
@@ -110,7 +90,6 @@ public class ProviderController : BaseApiController
             }
 
             return Ok(provider);
-            */
         }
         catch (Exception ex)
         {
@@ -134,18 +113,11 @@ public class ProviderController : BaseApiController
                 return BadRequest(new { error = "NOT_PROVIDER", message = "This endpoint is for providers only" });
             }
 
-            // TODO: Implement actual API key regeneration
-            Logger.LogWarning("RegenerateApiKey endpoint called but not fully implemented yet for provider: {UserId}",
-                GetUserId());
+            if (!Guid.TryParse(GetUserId(), out var providerId))
+            {
+                return BadRequest(new { error = "INVALID_USER_ID", message = "Invalid user ID format" });
+            }
 
-            return StatusCode(501, new {
-                error = "NOT_IMPLEMENTED",
-                message = "API key regeneration not yet implemented. Please check TODO.md for implementation status."
-            });
-
-            // TODO: Uncomment when full provider management is implemented
-            /*
-            var providerId = GetUserId();
             var newApiKey = await _providerService.RegenerateApiKeyAsync(providerId, cancellationToken);
 
             Logger.LogInformation("API key regenerated for provider: {ProviderId}", providerId);
@@ -155,7 +127,6 @@ public class ProviderController : BaseApiController
                 regeneratedAt = DateTime.UtcNow,
                 message = "API key has been regenerated. Please update your applications with the new key."
             });
-            */
         }
         catch (Exception ex)
         {
@@ -173,24 +144,12 @@ public class ProviderController : BaseApiController
     {
         try
         {
-            // TODO: Implement provider listing
-            Logger.LogWarning("GetProviders endpoint called but not fully implemented yet by admin: {UserId}",
-                GetUserId());
-
-            return StatusCode(501, new {
-                error = "NOT_IMPLEMENTED",
-                message = "Provider listing not yet implemented. Please check TODO.md for implementation status."
-            });
-
-            // TODO: Uncomment when IProviderService is implemented
-            /*
             var providers = await _providerService.GetAllProvidersAsync(cancellationToken);
 
             Logger.LogInformation("Retrieved {Count} providers for admin: {UserId}",
                 providers.Count(), GetUserId());
 
             return Ok(providers);
-            */
         }
         catch (Exception ex)
         {

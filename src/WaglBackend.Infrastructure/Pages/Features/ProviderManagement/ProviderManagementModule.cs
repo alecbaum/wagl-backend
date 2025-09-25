@@ -1,6 +1,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using WaglBackend.Domain.Organisms.Repositories;
+using WaglBackend.Domain.Organisms.Services;
 using WaglBackend.Infrastructure.Pages.Extensions;
+using WaglBackend.Infrastructure.Persistence.Repositories;
+using WaglBackend.Infrastructure.Services;
 
 namespace WaglBackend.Infrastructure.Pages.Features.ProviderManagement;
 
@@ -9,8 +13,8 @@ public class ProviderManagementModule : IModule
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
         // Register provider management services
-        // services.AddScoped<IProviderService, ProviderService>();
-        // services.AddScoped<IProviderRepository, ProviderRepository>();
+        services.AddScoped<IProviderService, ProviderService>();
+        services.AddScoped<IProviderRepository, ProviderRepository>();
         // services.AddScoped<IValidator<Provider>, ProviderValidator>();
         // services.AddScoped<IApiKeyService, ApiKeyService>();
         
