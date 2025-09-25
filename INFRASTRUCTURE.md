@@ -116,69 +116,53 @@ This document contains comprehensive information about all AWS infrastructure co
 - **Protocol**: HTTP
 - **Default Action**: Forward to wagl-backend-tg
 
-## 🐳 Container Platform (ECS)
+## 🚀 Container Platform (AWS App Runner)
 
-### ECS Cluster
-- **ARN**: `arn:aws:ecs:us-east-1:108367188859:cluster/wagl-backend-cluster`
-- **Name**: wagl-backend-cluster
-- **Capacity Providers**: FARGATE, FARGATE_SPOT
-- **Container Insights**: Disabled
-
-### Task Definition
-- **ARN**: `arn:aws:ecs:us-east-1:108367188859:task-definition/wagl-backend-api:5`
-- **Family**: wagl-backend-api
-- **Revision**: 5 (Current - with TLS fixes)
-- **Network Mode**: awsvpc
-- **Requires Compatibilities**: FARGATE
-- **CPU**: 256
-- **Memory**: 512
-- **Execution Role**: arn:aws:iam::108367188859:role/wagl-backend-ecs-execution-role
-- **Key Updates in Revision 5**:
-  - Enhanced Redis connection string with TLS: `ssl=true,abortConnect=false`
-  - PostgreSQL JSON serialization fixes applied
-  - SignalR TLS configuration for ElastiCache Serverless
-  - Production-ready environment variables
-
-#### Container Definition
+### App Runner Service
+- **ARN**: `arn:aws:apprunner:us-east-1:108367188859:service/wagl-backend-api/5984749a10a5464da789955c600899f9`
 - **Name**: wagl-backend-api
-- **Image**: `108367188859.dkr.ecr.us-east-1.amazonaws.com/waglswarm-web2:latest`
-- **Port Mappings**: 80:80 (TCP)
-- **Log Group**: /ecs/wagl-backend
-- **Health Check**: curl -f http://localhost:80/health
+- **Service ID**: 5984749a10a5464da789955c600899f9
+- **Status**: RUNNING
+- **Service URL**: `v6uwnty3vi.us-east-1.awsapprunner.com`
+- **Custom Domain**: `api.wagl.ai` (Associated)
+- **Platform**: Managed Platform
+- **Runtime**: Docker
 
-### ECS Service
-- **ARN**: `arn:aws:ecs:us-east-1:108367188859:service/wagl-backend-cluster/wagl-backend-service`
-- **Name**: wagl-backend-service
-- **Cluster**: wagl-backend-cluster
-- **Task Definition**: wagl-backend-api:5 (Updated with TLS fixes)
-- **Desired Count**: 1
-- **Launch Type**: FARGATE
-- **Platform Version**: LATEST
-- **Subnets**: subnet-00f9ba3449886f8f3, subnet-02963cc40eb5866a3
-- **Security Groups**: sg-0ed7714fe63508850
-- **Public IP**: DISABLED
-- **Service Status**: STABLE (Healthy after TLS fixes)
-- **Tasks Running**: 1/1 healthy
+### App Runner Configuration
+- **CPU**: 0.25 vCPU
+- **Memory**: 0.5 GB
+- **Port**: 80
+- **Environment Variables**:
+  - Database connection: Aurora PostgreSQL
+  - Redis connection: ElastiCache Serverless with TLS
+  - JWT configuration: Production keys
+  - SignalR: Dual-port Redis backplane
+- **Health Check**: /health endpoint
+- **Auto Scaling**: Automatic (App Runner managed)
 
-### Auto Scaling Configuration
-- **Scalable Target ARN**: `arn:aws:application-autoscaling:us-east-1:108367188859:scalable-target/0ec5c95b4d27379947b2bd9005a85cdb5924`
-- **Min Capacity**: 1
-- **Max Capacity**: 10
-- **Service Namespace**: ecs
-- **Scalable Dimension**: ecs:service:DesiredCount
+### VPC Connector Configuration
+- **VPC Connector**: Configured for database and cache access
+- **Subnets**: subnet-00f9ba3449886f8f3, subnet-02963cc40eb5866a3 (Private)
+- **Security Groups**: sg-09f0cb6c27a3e83f9 (Database/Cache access)
+- **Outbound Traffic**: VPC only (for database/cache)
 
-#### Scaling Policies
-1. **CPU Scaling Policy**
-   - **ARN**: `arn:aws:autoscaling:us-east-1:108367188859:scalingPolicy:c95b4d27-3799-47b2-bd90-05a85cdb5924:resource/ecs/service/wagl-backend-cluster/wagl-backend-service:policyName/wagl-backend-cpu-scaling`
-   - **Target Value**: 70% CPU Utilization
-   - **Scale Out Cooldown**: 300 seconds
-   - **Scale In Cooldown**: 300 seconds
+### Key Migration Benefits
+- **Simplified Deployment**: No task definitions or clusters to manage
+- **Automatic Scaling**: Built-in horizontal and vertical scaling
+- **Zero Downtime**: Automatic blue-green deployments
+- **Cost Optimization**: Pay-per-use model vs. always-running Fargate
+- **SSL/TLS**: Automatic certificate management
+- **Faster Deployments**: ~2 minutes vs 3-5 minutes with ECS
 
-2. **Memory Scaling Policy**
-   - **ARN**: `arn:aws:autoscaling:us-east-1:108367188859:scalingPolicy:c95b4d27-3799-47b2-bd90-05a85cdb5924:resource/ecs/service/wagl-backend-cluster/wagl-backend-service:policyName/wagl-backend-memory-scaling`
-   - **Target Value**: 80% Memory Utilization
-   - **Scale Out Cooldown**: 300 seconds
-   - **Scale In Cooldown**: 300 seconds
+## 🏺 Legacy Infrastructure (Removed)
+
+### Former ECS Setup (Migrated to App Runner - 2025-09-24)
+- **ECS Cluster**: wagl-backend-cluster (Removed)
+- **ECS Service**: wagl-backend-service (Deleted 2025-09-24)
+- **Task Definition**: wagl-backend-api:1-5 (Legacy)
+- **Application Load Balancer**: Still exists but unused
+- **Target Groups**: No longer routing traffic
+- **Auto Scaling**: Replaced with App Runner auto-scaling
 
 ## 🏪 Container Registry (ECR)
 
@@ -324,9 +308,10 @@ wagl-backend-cache-ggfeqp.serverless.use1.cache.amazonaws.com:6379,ssl=true,abor
 - **Client Files**: bash.ovpn, alec.ovpn (available for download)
 
 ### Application URLs
-- **Production Domain**: `https://api.wagl.ai` (Primary)
-- **Load Balancer**: `http://wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com`
-- **Health Check**: `http://api.wagl.ai/health`
+- **Production Domain**: `https://api.wagl.ai` (Primary - App Runner)
+- **Direct App Runner URL**: `https://v6uwnty3vi.us-east-1.awsapprunner.com`
+- **Load Balancer**: `http://wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com` (Legacy - Unused)
+- **Health Check**: `https://api.wagl.ai/health`
 
 ## 💰 Cost Optimization Features
 
@@ -352,14 +337,15 @@ All resources are tagged with:
 - **Hosted Zone ID**: `Z04843342UGS95V394GIH`
 - **Domain**: wagl.ai
 - **DNS Records**:
-  - A record: `api.wagl.ai` → ALB (wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com)
-  - CNAME records: SSL certificate validation records
+  - CNAME record: `api.wagl.ai` → App Runner (v6uwnty3vi.us-east-1.awsapprunner.com)
+  - DNS validation records: SSL certificate validation (ACM)
 
 ### SSL Certificate
 - **Certificate ARN**: `arn:aws:acm:us-east-1:108367188859:certificate/071eb2b0-e1b0-41b4-9a7b-0ab1af16ad61`
 - **Domains Covered**: api.wagl.ai, *.wagl.ai
 - **Validation Method**: DNS validation
-- **Status**: Pending validation (DNS records added)
+- **Status**: ISSUED (Valid until 2026-10-16)
+- **Usage**: Associated with App Runner service
 
 ## 📝 Deployment Notes
 
@@ -381,6 +367,10 @@ All resources are tagged with:
 16. **Health Checks**: All endpoints healthy - /health returning 200 OK
 17. **LINQ Translation**: Entity Framework DateTime.Add issues resolved with client-side evaluation
 18. **Production Status**: Fully operational as of 2025-09-19
+19. **App Runner Migration**: Successfully migrated from ECS to App Runner (2025-09-24)
+20. **SignalR Port Fix**: ElastiCache Serverless dual-port architecture properly configured (ports 6379/6380)
+21. **JWT Authentication**: Verified working after App Runner deployment
+22. **ECS Cleanup**: Legacy ECS service and resources removed
 
 ## 🔄 Maintenance Windows
 
@@ -392,7 +382,22 @@ All resources are tagged with:
 
 ## 🛠️ Technical Implementation Details
 
-### Recent Critical Fixes (2025-09-19)
+### Recent Critical Fixes and Migrations
+
+#### App Runner Migration (2025-09-24)
+- **Issue**: ECS deployments were slow (3-5 minutes) and complex to manage
+- **Solution**: Migrated to AWS App Runner for simplified container deployment
+- **Benefits**: Faster deployments (~2 minutes), automatic scaling, zero-downtime updates
+- **Status**: Migration completed successfully with full functionality
+
+#### SignalR ValKey Dual-Port Architecture Fix (2025-09-24)
+- **Issue**: SignalR Redis backplane failing with AWS ElastiCache Serverless port configuration
+- **Root Cause**: ElastiCache Serverless uses dual ports: 6379 (writes) and 6380 (reads/subscriptions)
+- **Solution**: Updated SignalR configuration to connect to both ports with proper TLS
+- **Code Location**: `src/WaglBackend.Api/Startup.cs:145-189`
+- **Result**: SignalR real-time functionality now working correctly
+
+#### Previous Fixes (2025-09-19)
 
 #### PostgreSQL JSON Serialization Resolution
 - **Issue**: `Type 'String[]' required dynamic JSON serialization, which requires an explicit opt-in`
@@ -422,8 +427,8 @@ All resources are tagged with:
 
 ---
 
-**Last Updated**: 2025-09-19
-**Infrastructure Version**: 1.2
+**Last Updated**: 2025-09-24
+**Infrastructure Version**: 2.0 (App Runner Migration)
 **Deployment Region**: us-east-1
-**Current Task Definition**: wagl-backend-api:5
-**Application Status**: Fully Operational
+**Current Platform**: AWS App Runner
+**Application Status**: Fully Operational with SignalR Fix Applied

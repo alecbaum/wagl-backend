@@ -4,10 +4,11 @@
 
 The Wagl Backend API provides a comprehensive chat session management system with anonymous user support, real-time messaging via SignalR, and tiered authentication. The API follows RESTful principles and uses JWT authentication for registered users and anonymous access for invited participants.
 
-**Base URL**: `http://wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com`
+**Base URL**: `https://api.wagl.ai` (Primary) / `https://v6uwnty3vi.us-east-1.awsapprunner.com` (Direct)
 **API Version**: v1.0
-**Protocol**: HTTP/HTTPS
+**Protocol**: HTTPS
 **Content-Type**: `application/json`
+**Platform**: AWS App Runner
 
 ---
 
@@ -474,26 +475,30 @@ await connection.invoke("JoinRoomWithToken", inviteToken, displayName);
 
 ##### Send Message
 ```javascript
-await connection.invoke("SendMessage", messageContent, roomId);
+// Method signature: SendMessage(roomId, content)
+await connection.invoke("SendMessage", roomId, "Hello everyone!");
 ```
 
-**Message Content Structure:**
-```json
-{
-  "content": "Hello everyone! GUID: 123e4567-e89b-12d3-a456-426614174000",
-  "messageType": "text",
-  "guid": "123e4567-e89b-12d3-a456-426614174000"
-}
-```
+**Parameters:**
+- `roomId`: string - The room ID to send the message to
+- `content`: string - The message content to send
 
 ##### Leave Room
 ```javascript
-await connection.invoke("LeaveRoom", roomId);
+// No parameters required - automatically leaves current room
+await connection.invoke("LeaveRoom");
 ```
 
-##### Get Room Participants
+##### Request Room Information
 ```javascript
-const participants = await connection.invoke("GetRoomParticipants", roomId);
+// Get current room information including participants
+await connection.invoke("RequestRoomInfo");
+```
+
+##### Request Message History
+```javascript
+// Get recent messages for current room (default: 50 messages)
+await connection.invoke("RequestMessageHistory", 50);
 ```
 
 #### Hub Events (Server → Client)
@@ -534,6 +539,98 @@ connection.on("ParticipantJoined", (participant) => {
 ```javascript
 connection.on("ParticipantLeft", (participant) => {
   // Same structure as ParticipantJoined
+});
+```
+
+##### Participant Disconnected
+```javascript
+connection.on("ParticipantDisconnected", (participant) => {
+  {
+    "participantId": "participant_uuid",
+    "displayName": "User Name",
+    "disconnectedAt": "2025-09-24T20:30:00Z"
+  }
+});
+```
+
+##### Room Information Response
+```javascript
+connection.on("RoomInfo", (roomInfo) => {
+  {
+    "roomId": "room_uuid",
+    "name": "Room 1",
+    "currentParticipants": 5,
+    "maxParticipants": 6,
+    "canJoin": true,
+    "participants": [...] // Array of participant objects
+  }
+});
+```
+
+##### Message History Response
+```javascript
+connection.on("MessageHistory", (messages) => {
+  // Array of message objects with same structure as MessageReceived
+  [
+    {
+      "id": "message_uuid",
+      "content": "Hello everyone!",
+      "senderId": "participant_uuid",
+      "senderName": "John Doe",
+      "roomId": "room_uuid",
+      "timestamp": "2025-09-24T20:30:00Z",
+      "messageType": "text",
+      "isAnonymous": false
+    }
+  ]
+});
+```
+
+##### Moderator Message Received
+```javascript
+connection.on("ModeratorMessageReceived", (message) => {
+  {
+    "messageId": "message_uuid",
+    "sessionId": "session_uuid",
+    "roomId": "room_uuid",
+    "senderName": "Moderator",
+    "content": "This is a moderator announcement",
+    "sentAt": "2025-09-24T20:30:00Z",
+    "messageType": "moderator",
+    "externalMessageId": "uai_message_123",
+    "triggerMessageId": "trigger_uuid",
+    "isModerator": true
+  }
+});
+```
+
+##### Bot Message Received
+```javascript
+connection.on("BotMessageReceived", (message) => {
+  {
+    "messageId": "message_uuid",
+    "sessionId": "session_uuid",
+    "roomId": "room_uuid",
+    "senderName": "UAI Bot",
+    "content": "AI generated response",
+    "sentAt": "2025-09-24T20:30:00Z",
+    "messageType": "bot",
+    "externalMessageId": "uai_bot_456",
+    "triggerMessageId": "trigger_uuid",
+    "isBot": true,
+    "botName": "UAI Bot"
+  }
+});
+```
+
+##### Generic Error
+```javascript
+connection.on("Error", (errorMessage) => {
+  console.error("SignalR Error:", errorMessage);
+  // Examples:
+  // "You are not connected to any room."
+  // "Failed to send message. Please try again."
+  // "Failed to get room information."
 });
 ```
 
@@ -602,7 +699,7 @@ connection.on("ParticipantLeft", handleParticipantLeft);
 
 // Step 6: Send messages with GUID tracking
 const messageGuid = generateUUID();
-await connection.invoke("SendMessage", `Hello! GUID: ${messageGuid}`, roomJoinResult.roomId);
+await connection.invoke("SendMessage", roomJoinResult.roomId, "Hello everyone!");
 ```
 
 ### 2. Admin Session Creation Flow
@@ -676,7 +773,7 @@ function generateMessageGUID() {
 const messageGuid = generateMessageGUID();
 const messageContent = `User message with tracking ID: ${messageGuid}`;
 
-await connection.invoke("SendMessage", messageContent, currentRoomId);
+await connection.invoke("SendMessage", currentRoomId, messageContent);
 
 // Track sent messages for verification
 const sentMessages = [];
@@ -939,12 +1036,12 @@ Healthy
 
 ## Environment Information
 
-- **Production URL**: `http://wagl-backend-alb-2094314021.us-east-1.elb.amazonaws.com`
+- **Production URL**: `https://api.wagl.ai` (Primary)\n- **Direct App Runner URL**: `https://v6uwnty3vi.us-east-1.awsapprunner.com`
 - **API Version**: v1.0
-- **Database**: PostgreSQL (Aurora Serverless)
+- **Platform**: AWS App Runner\n- **Database**: PostgreSQL (Aurora Serverless v2)
 - **Cache**: AWS ElastiCache Serverless (ValKey/Redis) - **TLS Required**
 - **Real-time**: SignalR WebSockets
-- **Authentication**: JWT + API Key (dual scheme)
+- **Authentication**: JWT + API Key (dual scheme)\n- **SSL/TLS**: Automatic certificate management\n- **Deployment**: Zero-downtime blue-green deployments
 
 ---
 
@@ -957,4 +1054,4 @@ Healthy
 5. **SignalR connections support automatic reconnection**
 6. **Rate limiting is enforced per user tier**
 7. **Sessions support up to 6 rooms with 6 participants each (36 total)**
-8. **TLS is required for cache connections in production**
+8. **TLS is required for cache connections in production**\n9. **SignalR Redis backplane uses dual-port architecture (6379 writes, 6380 reads)**\n10. **API migrated to App Runner for faster deployments (2-3 minutes vs 3-5 minutes)**\n11. **Custom domain api.wagl.ai with automatic SSL certificate renewal**

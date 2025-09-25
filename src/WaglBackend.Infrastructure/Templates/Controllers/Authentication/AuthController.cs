@@ -94,7 +94,7 @@ public class AuthController : BaseApiController
     /// Logout user and revoke tokens
     /// </summary>
     [HttpPost("logout")]
-    [Authorize(Policy = PolicyNames.AnyAuthenticated)]
+    [Authorize(AuthenticationSchemes = "MultiAuth")]
     [ProducesResponseType(204)]
     [ProducesResponseType(401)]
     public async Task<ActionResult> Logout(CancellationToken cancellationToken)

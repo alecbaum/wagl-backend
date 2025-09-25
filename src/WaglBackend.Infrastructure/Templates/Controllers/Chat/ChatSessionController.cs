@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Asp.Versioning;
 using WaglBackend.Core.Atoms.ValueObjects;
 using WaglBackend.Core.Atoms.Enums;
 using WaglBackend.Core.Molecules.DTOs.Request;
@@ -11,6 +12,7 @@ using WaglBackend.Infrastructure.Templates.Authorization;
 
 namespace WaglBackend.Infrastructure.Templates.Controllers.Chat;
 
+[ApiVersion("1.0")]
 [Authorize(Policy = ChatAuthorizationPolicies.ChatAccess)]
 [ApiController]
 [Route("api/v{version:apiVersion}/chat/sessions")]
@@ -26,9 +28,10 @@ public class ChatSessionController : BaseApiController
     }
 
     /// <summary>
-    /// Create a new chat session
+    /// Create a new chat session (Admin only)
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = ChatAuthorizationPolicies.ChatAdmin)]
     public async Task<ActionResult<ChatSessionResponse>> CreateSession(
         [FromBody] ChatSessionRequest request,
         CancellationToken cancellationToken = default)

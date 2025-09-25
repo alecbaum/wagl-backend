@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Asp.Versioning;
 using WaglBackend.Core.Molecules.DTOs.Request.UAI;
 using WaglBackend.Domain.Organisms.Services;
 using WaglBackend.Infrastructure.Templates.Controllers.Base;
@@ -11,6 +12,7 @@ namespace WaglBackend.Infrastructure.Templates.Controllers.UAI;
 /// TODO: Placeholder controller - UAI doesn't send moderator/bot messages yet
 /// Controller for receiving webhook messages from UAI service
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/uai/webhook")]
 public class UAIWebhookController : BaseApiController

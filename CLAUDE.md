@@ -55,6 +55,40 @@ dotnet format
 dotnet analyze
 ```
 
+### Deployment
+```bash
+# App Runner deployment (Current - Fast and Simple)
+./deploy-app-runner.sh
+
+# Database migrations (if needed)
+./migrate.sh
+
+# Test endpoints (updated for App Runner)
+./test-simple-flow.sh
+
+# Build Docker image locally
+docker build -t wagl-backend:latest .
+
+# Manual App Runner deployment trigger
+aws apprunner start-deployment --service-arn arn:aws:apprunner:us-east-1:108367188859:service/wagl-backend-api/5984749a10a5464da789955c600899f9
+```
+
+**Note**: We've migrated from ECS to AWS App Runner for simplified deployments. Legacy ECS scripts have been moved to the `legacy/` folder.
+
+## ⚠️ CRITICAL RULE: Front-End Demo Isolation
+
+**RULE**: The `/front-end-demo` folder is completely isolated from the main backend application:
+
+1. **ALL** front-end demo files MUST be contained within `/front-end-demo/` folder ONLY
+2. **NOTHING** about the UI client should exist outside this folder
+3. **NEVER** modify backend code when working on the front-end demo
+4. **NEVER** add front-end demo dependencies to the main project files
+5. If backend features are missing for the demo, add them to `TODO.md` but DO NOT implement them
+6. The front-end demo is purely for testing the production API endpoints
+7. Keep the demo self-contained with its own HTML, CSS, JS, and dependencies
+
+**Purpose**: This front-end demo is for testing production deployment and API functionality without affecting the main application.
+
 ## Architecture: Atomic Design Pattern
 
 The project follows a strict 5-layer Atomic Design hierarchy:

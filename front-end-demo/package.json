@@ -1,0 +1,16 @@
+{
+  "name": "front-end-demo",
+  "version": "1.0.0",
+  "description": "A comprehensive web-based UI for testing the Wagl Backend API in production. This demo provides interfaces for authentication, session management, real-time chat, and all API endpoints.",
+  "main": "debug-registration.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.55.1"
+  }
+}

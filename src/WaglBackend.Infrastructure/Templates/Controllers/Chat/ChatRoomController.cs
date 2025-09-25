@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Asp.Versioning;
 using WaglBackend.Core.Atoms.ValueObjects;
 using WaglBackend.Core.Molecules.DTOs.Response;
 using WaglBackend.Domain.Organisms.Services;
@@ -9,6 +10,7 @@ using WaglBackend.Infrastructure.Templates.Authorization;
 
 namespace WaglBackend.Infrastructure.Templates.Controllers.Chat;
 
+[ApiVersion("1.0")]
 [Authorize(Policy = ChatAuthorizationPolicies.ChatAccess)]
 [ApiController]
 [Route("api/v{version:apiVersion}/chat/rooms")]

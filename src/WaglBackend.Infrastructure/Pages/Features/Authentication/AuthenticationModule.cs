@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using WaglBackend.Core.Atoms.Constants;
@@ -20,9 +21,52 @@ public class AuthenticationModule : IModule
         // services.AddScoped<IApiKeyService, ApiKeyService>(); // Not implemented yet
         services.AddScoped<IJwtService, WaglBackend.Infrastructure.Services.Authentication.JwtService>();
 
-        var jwtConfig = configuration.GetSection(JwtConfiguration.SectionName).Get<JwtConfiguration>();
-        
-        if (jwtConfig != null)
+        // Get JWT configuration - use explicit binding to ensure it works
+        var jwtConfig = new JwtConfiguration();
+        var jwtSection = configuration.GetSection(JwtConfiguration.SectionName);
+        jwtSection.Bind(jwtConfig);
+
+        // Also try direct configuration access as fallback
+        if (string.IsNullOrEmpty(jwtConfig.SecretKey))
+        {
+            jwtConfig.SecretKey = configuration["Authentication:Jwt:SecretKey"] ?? "";
+            jwtConfig.Issuer = configuration["Authentication:Jwt:Issuer"] ?? "";
+            jwtConfig.Audience = configuration["Authentication:Jwt:Audience"] ?? "";
+        }
+
+        // Log JWT configuration for debugging - use Console during service registration
+        // to avoid "logger is already frozen" issues
+
+        // Force JWT authentication even if configuration seems empty
+        // This ensures authentication middleware is always registered
+        if (string.IsNullOrEmpty(jwtConfig.SecretKey))
+        {
+            Console.WriteLine("JWT SecretKey is empty! Using environment variable fallback...");
+            jwtConfig.SecretKey = Environment.GetEnvironmentVariable("Authentication__Jwt__SecretKey") ??
+                                 Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ??
+                                 "WaglBackendJwtSecretKeyForProductionEnvironment2024!VerySecureKey123";
+        }
+
+        if (string.IsNullOrEmpty(jwtConfig.Issuer))
+        {
+            jwtConfig.Issuer = Environment.GetEnvironmentVariable("Authentication__Jwt__Issuer") ??
+                              Environment.GetEnvironmentVariable("JWT_ISSUER") ??
+                              "https://api.wagl.ai";
+        }
+
+        if (string.IsNullOrEmpty(jwtConfig.Audience))
+        {
+            jwtConfig.Audience = Environment.GetEnvironmentVariable("Authentication__Jwt__Audience") ??
+                                Environment.GetEnvironmentVariable("JWT_AUDIENCE") ??
+                                "wagl-backend-api";
+        }
+
+        Console.WriteLine($"JWT Configuration - Issuer: {jwtConfig.Issuer}, Audience: {jwtConfig.Audience}, SecretKey Length: {jwtConfig.SecretKey?.Length ?? 0}");
+
+        // Configure JWT authentication (ALWAYS - no conditional check)
+        Console.WriteLine($"Configuring JWT authentication with SecretKey length: {jwtConfig.SecretKey?.Length ?? 0}");
+
+        // JWT authentication setup - UNCONDITIONAL
         {
             // Configure JWT Authentication
             services.AddAuthentication(options =>
@@ -48,9 +92,30 @@ public class AuthenticationModule : IModule
                 {
                     OnAuthenticationFailed = context =>
                     {
+                        var logger = context.HttpContext.RequestServices.GetService<ILogger<AuthenticationModule>>();
+                        logger?.LogError("JWT Authentication failed: {Exception}", context.Exception.ToString());
+
                         if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
                         {
-                            context.Response.Headers.Add("Token-Expired", "true");
+                            context.Response.Headers["Token-Expired"] = "true";
+                            logger?.LogWarning("JWT Token expired");
+                        }
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetService<ILogger<AuthenticationModule>>();
+                        logger?.LogInformation("JWT Token validated successfully for user: {UserId}",
+                            context.Principal?.FindFirst("sub")?.Value ?? "Unknown");
+                        return Task.CompletedTask;
+                    },
+                    OnMessageReceived = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetService<ILogger<AuthenticationModule>>();
+                        var token = context.Token;
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            logger?.LogInformation("JWT Token received, length: {Length}", token.Length);
                         }
                         return Task.CompletedTask;
                     }
@@ -62,20 +127,31 @@ public class AuthenticationModule : IModule
             {
                 options.ForwardDefaultSelector = context =>
                 {
+                    var logger = context.RequestServices.GetService<ILogger<AuthenticationModule>>();
                     var authorization = context.Request.Headers["Authorization"].ToString();
-                    
+
+                    logger?.LogInformation("MultiAuth selector called. Authorization header: {AuthHeader}",
+                        string.IsNullOrEmpty(authorization) ? "EMPTY" : $"Bearer {authorization.Substring(0, Math.Min(20, authorization.Length))}...");
+
                     if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer "))
                     {
                         var token = authorization.Substring("Bearer ".Length).Trim();
-                        
+
                         // JWT tokens have exactly 2 dots (3 parts: header.payload.signature)
                         var parts = token.Split('.');
-                        if (parts.Length == 3)
-                            return "JwtBearer";
+                        logger?.LogInformation("Token parts count: {PartsCount}", parts.Length);
 
+                        if (parts.Length == 3)
+                        {
+                            logger?.LogInformation("Routing to JwtBearer scheme");
+                            return "JwtBearer";
+                        }
+
+                        logger?.LogInformation("Routing to ApiKey scheme");
                         return "ApiKey";
                     }
-                    
+
+                    logger?.LogInformation("No auth header, defaulting to JwtBearer scheme");
                     return "JwtBearer";
                 };
             });

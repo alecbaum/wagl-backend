@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Asp.Versioning;
 using WaglBackend.Core.Atoms.ValueObjects;
 using WaglBackend.Core.Molecules.DTOs.Request;
 using WaglBackend.Core.Molecules.DTOs.Response;
@@ -10,6 +11,7 @@ using WaglBackend.Infrastructure.Templates.Authorization;
 
 namespace WaglBackend.Infrastructure.Templates.Controllers.Chat;
 
+[ApiVersion("1.0")]
 [Authorize(Policy = ChatAuthorizationPolicies.ChatAccess)]
 [ApiController]
 [Route("api/v{version:apiVersion}/chat/invites")]
@@ -25,10 +27,10 @@ public class SessionInviteController : BaseApiController
     }
 
     /// <summary>
-    /// Generate a new invite link for a chat session
+    /// Generate a new invite link for a chat session (Admin only)
     /// </summary>
     [HttpPost]
-    [Authorize(Policy = ChatAuthorizationPolicies.SessionParticipant)]
+    [Authorize(Policy = ChatAuthorizationPolicies.ChatAdmin)]
     public async Task<ActionResult<SessionInviteResponse>> GenerateInvite(
         [FromBody] SessionInviteRequest request,
         CancellationToken cancellationToken = default)
@@ -62,9 +64,10 @@ public class SessionInviteController : BaseApiController
     }
 
     /// <summary>
-    /// Generate multiple invite links for a chat session
+    /// Generate multiple invite links for a chat session (Admin only)
     /// </summary>
     [HttpPost("bulk")]
+    [Authorize(Policy = ChatAuthorizationPolicies.ChatAdmin)]
     public async Task<ActionResult<BulkSessionInviteResponse>> GenerateBulkInvites(
         [FromBody] BulkSessionInviteRequest request,
         CancellationToken cancellationToken = default)

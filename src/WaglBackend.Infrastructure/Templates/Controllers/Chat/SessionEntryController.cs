@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Asp.Versioning;
 using WaglBackend.Core.Atoms.ValueObjects;
 using WaglBackend.Core.Molecules.DTOs.Request;
 using WaglBackend.Core.Molecules.DTOs.Response;
@@ -12,6 +13,7 @@ namespace WaglBackend.Infrastructure.Templates.Controllers.Chat;
 /// <summary>
 /// Handles anonymous user entry into chat sessions via unique URLs
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/sessionentry")]
 [AllowAnonymous]

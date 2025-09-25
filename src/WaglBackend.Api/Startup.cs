@@ -130,27 +130,56 @@ public class Startup
         })
         .AddStackExchangeRedis(options =>
         {
-            // Configure Redis backplane for ElastiCache Serverless
+            // Configure Redis backplane for ElastiCache Serverless with dual-port architecture
             options.ConnectionFactory = async writer =>
             {
                 var redisConnectionString = Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 
-                // Parse and ensure SSL is properly configured
+                // Parse the connection string to extract the base endpoint
                 var config = StackExchange.Redis.ConfigurationOptions.Parse(redisConnectionString);
 
                 // Essential settings for ElastiCache Serverless
                 config.ChannelPrefix = RedisChannel.Literal("wagl:signalr:");
                 config.AbortOnConnectFail = false;
 
-                // Force TLS for ElastiCache Serverless - connection string parsing might not preserve SSL
-                if (redisConnectionString.Contains("serverless.use1.cache.amazonaws.com") ||
-                    redisConnectionString.Contains("ssl=true"))
+                // Handle ElastiCache Serverless dual-port architecture
+                if (redisConnectionString.Contains("serverless.use1.cache.amazonaws.com"))
                 {
+                    // Clear existing endpoints and configure dual ports
+                    config.EndPoints.Clear();
+
+                    // Extract the base hostname from the connection string
+                    var baseEndpoint = redisConnectionString.Split(':')[0];
+                    if (redisConnectionString.Contains(","))
+                    {
+                        baseEndpoint = redisConnectionString.Split(',')[0].Split(':')[0];
+                    }
+
+                    // Add both ports for ElastiCache Serverless dual-port architecture
+                    config.EndPoints.Add(baseEndpoint, 6379); // Write operations
+                    config.EndPoints.Add(baseEndpoint, 6380); // Read operations (SignalR subscriptions)
+
+                    // Force TLS for ElastiCache Serverless
                     config.Ssl = true;
                     config.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
 
                     // Log the configuration for debugging
-                    writer?.WriteLine($"SignalR Redis: Configuring SSL for ElastiCache Serverless");
+                    writer?.WriteLine($"SignalR Redis: Configuring dual-port ElastiCache Serverless");
+                    writer?.WriteLine($"Base endpoint: {baseEndpoint}");
+                    writer?.WriteLine($"Port 6379 (writes): {baseEndpoint}:6379");
+                    writer?.WriteLine($"Port 6380 (reads/subscriptions): {baseEndpoint}:6380");
+                    writer?.WriteLine($"SSL enabled: {config.Ssl}");
+                }
+                else
+                {
+                    // Handle regular Redis or other configurations
+                    if (redisConnectionString.Contains("ssl=true"))
+                    {
+                        config.Ssl = true;
+                        config.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+                    }
+
+                    writer?.WriteLine($"SignalR Redis: Standard configuration");
                     writer?.WriteLine($"Connection string: {redisConnectionString}");
                     writer?.WriteLine($"SSL enabled: {config.Ssl}");
                 }
