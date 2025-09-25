@@ -39,6 +39,9 @@ public class DatabaseSeeder
             // Seed roles
             await SeedRolesAsync();
 
+            // Seed demo users (admin, tier users, moderators)
+            await SeedDemoUsersAsync();
+
             // Seed demo provider for testing
             await SeedDemoProviderAsync();
 
@@ -56,10 +59,12 @@ public class DatabaseSeeder
         var roles = new[]
         {
             "Tier1",
-            "Tier2", 
+            "Tier2",
             "Tier3",
             "Provider",
-            "Admin"
+            "Admin",
+            "ChatModerator",
+            "ChatAdmin"
         };
 
         foreach (var roleName in roles)
@@ -228,10 +233,11 @@ public class DatabaseSeeder
     {
         var demoUsers = new[]
         {
-            new { Email = "tier1@wagl.com", Password = "Tier1Pass123!", FirstName = "Tier1", LastName = "User", Tier = AccountTier.Tier1 },
-            new { Email = "tier2@wagl.com", Password = "Tier2Pass123!", FirstName = "Tier2", LastName = "User", Tier = AccountTier.Tier2 },
-            new { Email = "tier3@wagl.com", Password = "Tier3Pass123!", FirstName = "Tier3", LastName = "User", Tier = AccountTier.Tier3 },
-            new { Email = "admin@wagl.com", Password = "AdminPass123!", FirstName = "Admin", LastName = "User", Tier = AccountTier.Tier3 }
+            new { Email = "tier1@wagl.com", Password = "Tier1Pass123!", FirstName = "Tier1", LastName = "User", Tier = AccountTier.Tier1, Role = (string?)null },
+            new { Email = "tier2@wagl.com", Password = "Tier2Pass123!", FirstName = "Tier2", LastName = "User", Tier = AccountTier.Tier2, Role = (string?)null },
+            new { Email = "tier3@wagl.com", Password = "Tier3Pass123!", FirstName = "Tier3", LastName = "User", Tier = AccountTier.Tier3, Role = (string?)null },
+            new { Email = "moderator@wagl.com", Password = "ModeratorPass123!", FirstName = "Moderator", LastName = "User", Tier = AccountTier.Tier2, Role = "ChatModerator" },
+            new { Email = "admin@wagl.com", Password = "AdminPass123!", FirstName = "Admin", LastName = "User", Tier = AccountTier.Tier3, Role = "Admin" }
         };
 
         foreach (var demoUser in demoUsers)
@@ -255,14 +261,17 @@ public class DatabaseSeeder
                 var result = await _userManager.CreateAsync(user, demoUser.Password);
                 if (result.Succeeded)
                 {
+                    // Add tier role
                     await _userManager.AddToRoleAsync(user, demoUser.Tier.ToString());
-                    
-                    if (demoUser.Email == "admin@wagl.com")
+
+                    // Add special role if specified
+                    if (!string.IsNullOrEmpty(demoUser.Role))
                     {
-                        await _userManager.AddToRoleAsync(user, "Admin");
+                        await _userManager.AddToRoleAsync(user, demoUser.Role);
                     }
 
-                    _logger.LogInformation("Created demo user: {Email} with tier {Tier}", demoUser.Email, demoUser.Tier);
+                    _logger.LogInformation("Created demo user: {Email} with tier {Tier} and role {Role}",
+                        demoUser.Email, demoUser.Tier, demoUser.Role ?? "None");
                 }
                 else
                 {
