@@ -231,6 +231,8 @@ public class DatabaseSeeder
 
     private async Task SeedDemoUsersAsync()
     {
+        _logger.LogInformation("Starting user seeding process...");
+
         var demoUsers = new[]
         {
             new { Email = "tier1@wagl.com", Password = "Tier1Pass123!", FirstName = "Tier1", LastName = "User", Tier = AccountTier.Tier1, Role = (string?)null },
@@ -240,11 +242,17 @@ public class DatabaseSeeder
             new { Email = "admin@wagl.com", Password = "AdminPass123!", FirstName = "Admin", LastName = "User", Tier = AccountTier.Tier3, Role = "Admin" }
         };
 
+        _logger.LogInformation("Attempting to seed {UserCount} demo users", demoUsers.Length);
+
         foreach (var demoUser in demoUsers)
         {
-            var existingUser = await _userManager.FindByEmailAsync(demoUser.Email);
-            if (existingUser == null)
+            try
             {
+                _logger.LogInformation("Checking if user exists: {Email}", demoUser.Email);
+                var existingUser = await _userManager.FindByEmailAsync(demoUser.Email);
+                if (existingUser == null)
+                {
+                    _logger.LogInformation("User does not exist, creating: {Email}", demoUser.Email);
                 var user = new User
                 {
                     Id = Guid.NewGuid(),
@@ -275,11 +283,22 @@ public class DatabaseSeeder
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to create demo user {Email}: {Errors}", 
+                    _logger.LogWarning("Failed to create demo user {Email}: {Errors}",
                         demoUser.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
                 }
+                }
+                else
+                {
+                    _logger.LogInformation("User already exists, skipping: {Email}", demoUser.Email);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing demo user: {Email}", demoUser.Email);
             }
         }
+
+        _logger.LogInformation("Completed user seeding process");
     }
 
     private async Task SeedDemoProvidersAsync()
