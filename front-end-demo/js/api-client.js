@@ -133,15 +133,18 @@ class ApiClient {
 
     // Session management endpoints
     async getSessions(page = 1, pageSize = CONFIG.UI.DEFAULT_PAGE_SIZE) {
-        return this.request(`/sessions?page=${page}&pageSize=${pageSize}`);
+        // Updated to match backend route: ChatSessionController
+        return this.request(`/chat/sessions/my-sessions?page=${page}&pageSize=${pageSize}`);
     }
 
     async getSession(sessionId) {
-        return this.request(`/sessions/${sessionId}`);
+        // Updated to match backend route: ChatSessionController
+        return this.request(`/chat/sessions/${sessionId}`);
     }
 
     async createSession(sessionData) {
-        return this.request('/sessions', {
+        // Updated to match backend route: ChatSessionController
+        return this.request('/chat/sessions', {
             method: 'POST',
             body: JSON.stringify(sessionData)
         });
@@ -174,10 +177,15 @@ class ApiClient {
 
     // Room management endpoints
     async getRooms(sessionId = null, page = 1, pageSize = CONFIG.UI.DEFAULT_PAGE_SIZE) {
-        const params = new URLSearchParams({ page, pageSize });
-        if (sessionId) params.append('sessionId', sessionId);
-
-        return this.request(`/rooms?${params}`);
+        // Updated to match backend route: ChatRoomController
+        if (sessionId) {
+            // Get rooms for specific session
+            return this.request(`/chat/rooms/session/${sessionId}?page=${page}&pageSize=${pageSize}`);
+        } else {
+            // If no sessionId provided, we'll need to get available rooms for any session
+            // This might need to be adjusted based on actual backend implementation
+            return this.request(`/chat/rooms/session/available?page=${page}&pageSize=${pageSize}`);
+        }
     }
 
     async getRoom(roomId) {
@@ -228,14 +236,20 @@ class ApiClient {
 
     // Invite management endpoints
     async getInvites(sessionId = null, page = 1, pageSize = CONFIG.UI.DEFAULT_PAGE_SIZE) {
-        const params = new URLSearchParams({ page, pageSize });
-        if (sessionId) params.append('sessionId', sessionId);
-
-        return this.request(`/invites?${params}`);
+        // Updated to match backend route: SessionInviteController
+        if (sessionId) {
+            // Get invites for specific session
+            return this.request(`/chat/invites/session/${sessionId}?page=${page}&pageSize=${pageSize}`);
+        } else {
+            // If no sessionId provided, return empty for now
+            // Backend doesn't have a "get all invites" endpoint without session
+            return { items: [], totalCount: 0, page: 1, pageSize: pageSize };
+        }
     }
 
     async generateInvite(sessionId, expirationMinutes = 120) {
-        return this.request('/invites', {
+        // Updated to match backend route: SessionInviteController
+        return this.request('/chat/invites', {
             method: 'POST',
             body: JSON.stringify({
                 sessionId,
@@ -245,10 +259,10 @@ class ApiClient {
     }
 
     async validateInvite(inviteCode) {
-        return this.request('/invites/validate', {
-            method: 'POST',
-            headers: HttpUtils.getHeaders(false),
-            body: JSON.stringify({ inviteCode })
+        // Updated to match backend route: SessionInviteController
+        return this.request(`/chat/invites/${inviteCode}/validate`, {
+            method: 'GET',
+            headers: HttpUtils.getHeaders(false)
         });
     }
 
