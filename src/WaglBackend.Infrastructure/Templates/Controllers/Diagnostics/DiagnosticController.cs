@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using Asp.Versioning;
 using WaglBackend.Core.Atoms.Entities;
 using WaglBackend.Infrastructure.Templates.Controllers.Base;
+using Npgsql;
+using Microsoft.Extensions.Configuration;
 
 namespace WaglBackend.Infrastructure.Templates.Controllers.Diagnostics;
 
@@ -16,12 +18,15 @@ namespace WaglBackend.Infrastructure.Templates.Controllers.Diagnostics;
 public class DiagnosticController : BaseApiController
 {
     private readonly UserManager<User> _userManager;
+    private readonly IConfiguration _configuration;
 
     public DiagnosticController(
         UserManager<User> userManager,
+        IConfiguration configuration,
         ILogger<DiagnosticController> logger) : base(logger)
     {
         _userManager = userManager;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -82,6 +87,57 @@ public class DiagnosticController : BaseApiController
             {
                 databaseConnected = false,
                 error = ex.Message,
+                message = "Database connection failed"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Test raw database connectivity without Entity Framework
+    /// </summary>
+    [HttpGet("database-connection")]
+    public async Task<ActionResult<object>> TestDatabaseConnection()
+    {
+        var connectionString = _configuration.GetConnectionString("PostgreSQL");
+
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            return StatusCode(500, new
+            {
+                connected = false,
+                error = "No connection string configured",
+                connectionString = "NULL"
+            });
+        }
+
+        try
+        {
+            Logger.LogInformation("Testing database connection with connection string: {ConnectionString}",
+                connectionString.Replace(_configuration["DATABASE_PASSWORD"] ?? "password", "***"));
+
+            using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            using var command = new NpgsqlCommand("SELECT version();", connection);
+            var version = await command.ExecuteScalarAsync();
+
+            return Ok(new
+            {
+                connected = true,
+                databaseVersion = version?.ToString() ?? "Unknown",
+                connectionString = connectionString.Replace(_configuration["DATABASE_PASSWORD"] ?? "password", "***"),
+                message = "Database connection successful"
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Database connection test failed");
+            return StatusCode(500, new
+            {
+                connected = false,
+                error = ex.Message,
+                innerException = ex.InnerException?.Message,
+                connectionString = connectionString.Replace(_configuration["DATABASE_PASSWORD"] ?? "password", "***"),
                 message = "Database connection failed"
             });
         }
