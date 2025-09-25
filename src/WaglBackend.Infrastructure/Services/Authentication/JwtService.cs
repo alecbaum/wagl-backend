@@ -13,6 +13,7 @@ using WaglBackend.Domain.Organisms.Services.Authentication;
 using WaglBackend.Domain.Organisms.Services.Caching;
 using WaglBackend.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 namespace WaglBackend.Infrastructure.Services.Authentication;
 
@@ -21,6 +22,7 @@ public class JwtService : IJwtService
     private readonly JwtConfiguration _jwtConfig;
     private readonly ICacheService _cacheService;
     private readonly ApplicationDbContext _context;
+    private readonly UserManager<User> _userManager;
     private readonly ILogger<JwtService> _logger;
     private readonly JwtSecurityTokenHandler _tokenHandler;
     private readonly SymmetricSecurityKey _signingKey;
@@ -29,11 +31,13 @@ public class JwtService : IJwtService
         IOptions<JwtConfiguration> jwtConfig,
         ICacheService cacheService,
         ApplicationDbContext context,
+        UserManager<User> userManager,
         ILogger<JwtService> logger)
     {
         _jwtConfig = jwtConfig.Value;
         _cacheService = cacheService;
         _context = context;
+        _userManager = userManager;
         _logger = logger;
         _tokenHandler = new JwtSecurityTokenHandler();
         _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtConfig.SecretKey));
@@ -43,19 +47,30 @@ public class JwtService : IJwtService
     {
         try
         {
+            // Get all user roles from Identity
+            var userRoles = _userManager.GetRolesAsync(user).Result;
+
+            var claims = new List<Claim>
+            {
+                new Claim(CustomClaimTypes.UserId, user.Id.ToString()),
+                new Claim(CustomClaimTypes.Email, user.Email ?? string.Empty),
+                new Claim(CustomClaimTypes.Name, $"{user.FirstName} {user.LastName}".Trim()),
+                new Claim(CustomClaimTypes.Role, user.TierLevel.Tier.ToString()),
+                new Claim(CustomClaimTypes.AccountType, "User"),
+                new Claim(CustomClaimTypes.TierLevel, user.TierLevel.Level.ToString()),
+                new Claim(CustomClaimTypes.IssuedAt, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()),
+                new Claim(CustomClaimTypes.Jti, Guid.NewGuid().ToString())
+            };
+
+            // Add all user roles as separate claims
+            foreach (var role in userRoles)
+            {
+                claims.Add(new Claim("role", role));
+            }
+
             var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new[]
-                {
-                    new Claim(CustomClaimTypes.UserId, user.Id.ToString()),
-                    new Claim(CustomClaimTypes.Email, user.Email ?? string.Empty),
-                    new Claim(CustomClaimTypes.Name, $"{user.FirstName} {user.LastName}".Trim()),
-                    new Claim(CustomClaimTypes.Role, user.TierLevel.Tier.ToString()),
-                    new Claim(CustomClaimTypes.AccountType, "User"),
-                    new Claim(CustomClaimTypes.TierLevel, user.TierLevel.Level.ToString()),
-                    new Claim(CustomClaimTypes.IssuedAt, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()),
-                    new Claim(CustomClaimTypes.Jti, Guid.NewGuid().ToString())
-                }),
+                Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddMinutes(_jwtConfig.ExpirationMinutes),
                 Issuer = _jwtConfig.Issuer,
                 Audience = _jwtConfig.Audience,

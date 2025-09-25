@@ -55,7 +55,8 @@ public static class ChatAuthorizationPolicies
                 // User is either a Tier3 user or has specific chat moderator role
                 return context.User.HasClaim("role", "Tier3") ||
                        context.User.HasClaim("role", "ChatModerator") ||
-                       context.User.HasClaim("role", "Provider");
+                       context.User.HasClaim("role", "Provider") ||
+                       context.User.HasClaim("role", "Admin");
             });
         });
 
@@ -66,7 +67,8 @@ public static class ChatAuthorizationPolicies
             policy.RequireAssertion(context =>
             {
                 return context.User.HasClaim("role", "Provider") ||
-                       context.User.HasClaim("role", "ChatAdmin");
+                       context.User.HasClaim("role", "ChatAdmin") ||
+                       context.User.HasClaim("role", "Admin");
             });
         });
     }
