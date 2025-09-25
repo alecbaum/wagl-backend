@@ -47,11 +47,17 @@ class ApiTester {
             const status = response.status;
             const statusIcon = status < 300 ? '✅' : status < 500 ? '⚠️' : '❌';
 
+            // Clone response to avoid "Body has already been read" error
+            const responseClone = response.clone();
             let data;
             try {
                 data = await response.json();
             } catch {
-                data = await response.text();
+                try {
+                    data = await responseClone.text();
+                } catch {
+                    data = 'Unable to read response';
+                }
             }
 
             console.log(`       ${statusIcon} ${status} ${response.statusText}`);
