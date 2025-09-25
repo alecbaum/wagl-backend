@@ -250,9 +250,14 @@ public class DatabaseSeeder
             {
                 _logger.LogInformation("Checking if user exists: {Email}", demoUser.Email);
                 var existingUser = await _userManager.FindByEmailAsync(demoUser.Email);
-                if (existingUser == null)
+
+                if (existingUser != null)
                 {
-                    _logger.LogInformation("User does not exist, creating: {Email}", demoUser.Email);
+                    _logger.LogInformation("User already exists, skipping: {Email}", existingUser.Email);
+                    continue;
+                }
+
+                _logger.LogInformation("User does not exist, creating: {Email}", demoUser.Email);
                 var user = new User
                 {
                     Id = Guid.NewGuid(),
@@ -285,11 +290,6 @@ public class DatabaseSeeder
                 {
                     _logger.LogWarning("Failed to create demo user {Email}: {Errors}",
                         demoUser.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
-                }
-                }
-                else
-                {
-                    _logger.LogInformation("User already exists, skipping: {Email}", demoUser.Email);
                 }
             }
             catch (Exception ex)
