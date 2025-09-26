@@ -30,13 +30,14 @@ public class Startup
             options.AddChatPolicies();
         });
 
-        // Add controllers
+        // Add controllers with explicit assembly scanning
         services.AddControllers(options =>
         {
             // Add filters (would be implemented in actual filters)
             // options.Filters.Add<ValidationFilter>();
             // options.Filters.Add<AuditFilter>();
-        });
+        })
+        .AddApplicationPart(typeof(WaglBackend.Infrastructure.Pages.Features.Diagnostics.Controllers.DiagnosticController).Assembly);
 
         // Add API versioning with API Explorer
         services.AddApiVersioning(options =>
