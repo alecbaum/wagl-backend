@@ -8,8 +8,8 @@ public class DiagnosticsModule : IModule
 {
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
-        // No additional services needed for diagnostics
-        // The controller will be auto-discovered through AddControllers()
-        // This module exists to ensure the diagnostics feature is properly organized
+        // Explicitly ensure DiagnosticController is available
+        // Add any diagnostic-specific services here if needed
+        services.AddTransient<Controllers.DiagnosticController>();
     }
 }
