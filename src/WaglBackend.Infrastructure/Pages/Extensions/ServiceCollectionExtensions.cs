@@ -138,10 +138,10 @@ public static class ServiceCollectionExtensions
         var redisConfig = configuration.GetSection(RedisConfiguration.SectionName).Get<RedisConfiguration>();
         var redisConnectionString = redisConfig?.ConnectionString;
 
-        // Check for Redis connection string from environment variable if not set in config
+        // Check for Redis connection string from various sources if not set in config
         if (string.IsNullOrEmpty(redisConnectionString) || redisConnectionString.Contains("${"))
         {
-            redisConnectionString = configuration["REDIS_CONNECTION_STRING"];
+            redisConnectionString = configuration.GetConnectionString("Redis") ?? configuration["REDIS_CONNECTION_STRING"];
         }
 
         if (!string.IsNullOrEmpty(redisConnectionString))
