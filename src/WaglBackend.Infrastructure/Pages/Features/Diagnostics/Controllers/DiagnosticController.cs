@@ -18,14 +18,17 @@ namespace WaglBackend.Infrastructure.Pages.Features.Diagnostics.Controllers;
 public class DiagnosticController : BaseApiController
 {
     private readonly UserManager<User> _userManager;
+    private readonly RoleManager<IdentityRole<Guid>> _roleManager;
     private readonly IConfiguration _configuration;
 
     public DiagnosticController(
         UserManager<User> userManager,
+        RoleManager<IdentityRole<Guid>> roleManager,
         IConfiguration configuration,
         ILogger<DiagnosticController> logger) : base(logger)
     {
         _userManager = userManager;
+        _roleManager = roleManager;
         _configuration = configuration;
     }
 
@@ -154,6 +157,74 @@ public class DiagnosticController : BaseApiController
                 innerException = ex.InnerException?.Message,
                 connectionString = connectionString.Replace(_configuration["DATABASE_PASSWORD"] ?? "password", "***"),
                 message = "Database connection failed"
+            });
+        }
+    }
+
+    /// <summary>
+    /// One-time admin promotion for specific users - REMOVE AFTER USE
+    /// </summary>
+    [HttpPost("promote-admins")]
+    public async Task<ActionResult<object>> PromoteAdmins()
+    {
+        try
+        {
+            var emailsToPromote = new[] { "bash@sentry10.com", "brian@wagl.ai", "admin@example.com" };
+            var rolesToAdd = new[] { "Admin", "ChatAdmin" };
+            var results = new List<object>();
+
+            foreach (var email in emailsToPromote)
+            {
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user == null)
+                {
+                    results.Add(new { email, status = "User not found" });
+                    continue;
+                }
+
+                var currentRoles = await _userManager.GetRolesAsync(user);
+                var addedRoles = new List<string>();
+
+                foreach (var role in rolesToAdd)
+                {
+                    if (!currentRoles.Contains(role))
+                    {
+                        var roleExists = await _roleManager.RoleExistsAsync(role);
+                        if (roleExists)
+                        {
+                            var result = await _userManager.AddToRoleAsync(user, role);
+                            if (result.Succeeded)
+                            {
+                                addedRoles.Add(role);
+                            }
+                        }
+                    }
+                }
+
+                var finalRoles = await _userManager.GetRolesAsync(user);
+                results.Add(new
+                {
+                    email,
+                    status = "Success",
+                    rolesAdded = addedRoles,
+                    allRoles = finalRoles.ToList()
+                });
+            }
+
+            return Ok(new
+            {
+                message = "Admin promotion completed",
+                results = results,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error promoting users to admin");
+            return StatusCode(500, new
+            {
+                error = ex.Message,
+                message = "Admin promotion failed"
             });
         }
     }
