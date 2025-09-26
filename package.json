@@ -4,5 +4,8 @@
     "axios": "^1.12.2",
     "better-sqlite3": "^12.2.0",
     "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1"
   }
 }

@@ -44,6 +44,12 @@ public class Startup
             options.DefaultApiVersion = new ApiVersion(1, 0);
             options.AssumeDefaultVersionWhenUnspecified = true;
             options.ReportApiVersions = true;
+            // Configure to read version from URL segment, query string, and headers
+            options.ApiVersionReader = ApiVersionReader.Combine(
+                new UrlSegmentApiVersionReader(),
+                new QueryStringApiVersionReader("version"),
+                new HeaderApiVersionReader("X-Version")
+            );
         }).AddApiExplorer(options =>
         {
             options.GroupNameFormat = "'v'VVV";
