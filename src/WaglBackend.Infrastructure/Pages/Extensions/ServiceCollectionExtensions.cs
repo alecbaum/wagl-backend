@@ -13,6 +13,7 @@ using WaglBackend.Infrastructure.Pages.Features.Authentication;
 using WaglBackend.Infrastructure.Pages.Features.UserManagement;
 using WaglBackend.Infrastructure.Pages.Features.ProviderManagement;
 using WaglBackend.Infrastructure.Pages.Features.Analytics;
+using WaglBackend.Infrastructure.Pages.Features.Diagnostics;
 using WaglBackend.Infrastructure.Persistence.Context;
 using WaglBackend.Infrastructure.Persistence.Seeding;
 using WaglBackend.Infrastructure.Services.Authentication;
@@ -205,6 +206,7 @@ public static class ServiceCollectionExtensions
         services.RegisterModule<UserManagementModule>(configuration);
         services.RegisterModule<ProviderManagementModule>(configuration);
         services.RegisterModule<AnalyticsModule>(configuration);
+        services.RegisterModule<DiagnosticsModule>(configuration);
 
         return services;
     }

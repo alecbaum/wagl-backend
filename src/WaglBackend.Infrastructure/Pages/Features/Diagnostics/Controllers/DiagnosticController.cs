@@ -7,7 +7,7 @@ using WaglBackend.Infrastructure.Templates.Controllers.Base;
 using Npgsql;
 using Microsoft.Extensions.Configuration;
 
-namespace WaglBackend.Infrastructure.Templates.Controllers.Diagnostics;
+namespace WaglBackend.Infrastructure.Pages.Features.Diagnostics.Controllers;
 
 /// <summary>
 /// Diagnostic endpoints for debugging deployment issues
