@@ -44,6 +44,28 @@ public static class ServiceCollectionExtensions
         // Register Entity Framework DbContext
         // Configure Npgsql data source for dynamic JSON serialization
         var connectionString = configuration.GetConnectionString("PostgreSQL");
+
+        // Build connection string from environment variables if not properly set
+        if (string.IsNullOrEmpty(connectionString) || connectionString.Contains("${"))
+        {
+            var host = configuration["DATABASE_HOST"];
+            var port = configuration["DATABASE_PORT"] ?? "5432";
+            var database = configuration["DATABASE_NAME"];
+            var username = configuration["DATABASE_USER"];
+            var password = configuration["DATABASE_PASSWORD"];
+            var sslMode = configuration["DATABASE_SSL_MODE"] ?? "Require";
+
+            if (!string.IsNullOrEmpty(host) && !string.IsNullOrEmpty(database) &&
+                !string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+            {
+                connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode={sslMode}";
+            }
+            else
+            {
+                throw new InvalidOperationException("Database connection string could not be built. Missing required environment variables: DATABASE_HOST, DATABASE_NAME, DATABASE_USER, DATABASE_PASSWORD");
+            }
+        }
+
         var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.EnableDynamicJson();
         services.AddSingleton(dataSourceBuilder.Build());
@@ -102,12 +124,20 @@ public static class ServiceCollectionExtensions
 
         // Register Redis Cache
         var redisConfig = configuration.GetSection(RedisConfiguration.SectionName).Get<RedisConfiguration>();
-        if (redisConfig != null && !string.IsNullOrEmpty(redisConfig.ConnectionString))
+        var redisConnectionString = redisConfig?.ConnectionString;
+
+        // Check for Redis connection string from environment variable if not set in config
+        if (string.IsNullOrEmpty(redisConnectionString) || redisConnectionString.Contains("${"))
+        {
+            redisConnectionString = configuration["REDIS_CONNECTION_STRING"];
+        }
+
+        if (!string.IsNullOrEmpty(redisConnectionString))
         {
             services.AddStackExchangeRedisCache(options =>
             {
-                options.Configuration = redisConfig.ConnectionString;
-                options.InstanceName = redisConfig.InstanceName;
+                options.Configuration = redisConnectionString;
+                options.InstanceName = redisConfig?.InstanceName ?? "WaglBackendCache";
             });
         }
         else
