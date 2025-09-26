@@ -50,12 +50,19 @@ public class JwtService : IJwtService
             // Get all user roles from Identity
             var userRoles = _userManager.GetRolesAsync(user).Result;
 
+            // Determine the primary role - prioritize Admin roles, then ChatAdmin, then tier roles
+            var primaryRole = user.TierLevel.Tier.ToString(); // Default to tier
+            if (userRoles.Contains("Admin"))
+                primaryRole = "Admin";
+            else if (userRoles.Contains("ChatAdmin"))
+                primaryRole = "ChatAdmin";
+
             var claims = new List<Claim>
             {
                 new Claim(CustomClaimTypes.UserId, user.Id.ToString()),
                 new Claim(CustomClaimTypes.Email, user.Email ?? string.Empty),
                 new Claim(CustomClaimTypes.Name, $"{user.FirstName} {user.LastName}".Trim()),
-                new Claim(CustomClaimTypes.Role, user.TierLevel.Tier.ToString()),
+                new Claim(CustomClaimTypes.Role, primaryRole),
                 new Claim(CustomClaimTypes.AccountType, "User"),
                 new Claim(CustomClaimTypes.TierLevel, user.TierLevel.Level.ToString()),
                 new Claim(CustomClaimTypes.IssuedAt, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()),
