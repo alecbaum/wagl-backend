@@ -30,6 +30,21 @@ public class DiagnosticController : BaseApiController
     }
 
     /// <summary>
+    /// Simple health check to test controller registration
+    /// </summary>
+    [HttpGet("ping")]
+    public ActionResult<object> Ping()
+    {
+        return Ok(new
+        {
+            status = "success",
+            message = "DiagnosticController is working",
+            timestamp = DateTime.UtcNow,
+            environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "unknown"
+        });
+    }
+
+    /// <summary>
     /// Check database seeding status
     /// </summary>
     [HttpGet("database-status")]
