@@ -67,20 +67,31 @@ public static class ServiceCollectionExtensions
             }
         }
 
+        // Configure Npgsql data source with connection pooling for Aurora Serverless
         var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.EnableDynamicJson();
+
+        // Add connection pooling configuration for Aurora Serverless v2
+        dataSourceBuilder.ConnectionStringBuilder.Pooling = true;
+        dataSourceBuilder.ConnectionStringBuilder.MinPoolSize = 5;  // Maintain warm connections
+        dataSourceBuilder.ConnectionStringBuilder.MaxPoolSize = 50; // Allow scaling
+        dataSourceBuilder.ConnectionStringBuilder.ConnectionIdleLifetime = 300; // 5 minutes
+        dataSourceBuilder.ConnectionStringBuilder.ConnectionPruningInterval = 10; // 10 seconds
+
         services.AddSingleton(dataSourceBuilder.Build());
 
-        services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
+        // Use DbContext pooling for better performance
+        services.AddDbContextPool<ApplicationDbContext>((serviceProvider, options) =>
         {
             var dataSource = serviceProvider.GetRequiredService<Npgsql.NpgsqlDataSource>();
             options.UseNpgsql(dataSource, npgsqlOptions =>
             {
                 npgsqlOptions.MigrationsAssembly("WaglBackend.Infrastructure");
                 npgsqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 3,
-                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
                     errorCodesToAdd: null);
+                npgsqlOptions.CommandTimeout(30); // 30 second timeout for Aurora Serverless
             });
 
             // Configure for development/production
@@ -97,7 +108,7 @@ public static class ServiceCollectionExtensions
             // Suppress pending model changes warning for development
             options.ConfigureWarnings(warnings =>
                 warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-        });
+        }, poolSize: 128); // DbContext pool size for high concurrency
 
         // Register ASP.NET Core Identity
         services.AddIdentity<User, IdentityRole<Guid>>(options =>
@@ -196,6 +207,7 @@ public static class ServiceCollectionExtensions
         // Register Background Services
         services.AddHostedService<WaglBackend.Infrastructure.Services.Background.SessionCleanupBackgroundService>();
         services.AddHostedService<WaglBackend.Infrastructure.Services.Background.SessionSchedulerBackgroundService>();
+        services.AddHostedService<WaglBackend.Infrastructure.Services.Background.DatabaseWarmupService>();
 
         // Register Authorization Handlers
         services.AddScoped<IAuthorizationHandler, WaglBackend.Infrastructure.Templates.Authorization.SessionParticipantHandler>();

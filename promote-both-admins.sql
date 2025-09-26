@@ -1,7 +1,8 @@
--- SQL Script to Promote Users to Admin Role
--- Run this directly in your PostgreSQL database
+-- Comprehensive Admin Promotion Script for Both Users
+-- Promotes bash@sentry10.com and brian@wagl.ai to Admin roles
 
--- First, let's check what users exist and their current roles
+-- Check current status
+SELECT 'Current user status:' as info;
 SELECT
     u."Email",
     u."FirstName",
@@ -10,9 +11,14 @@ SELECT
 FROM "Users" u
 LEFT JOIN "UserRoles" ur ON u."Id" = ur."UserId"
 LEFT JOIN "Roles" r ON ur."RoleId" = r."Id"
-WHERE u."Email" IN ('bash@sentry10.com', 'brian@wagl.ai', 'admin@example.com')
+WHERE u."Email" IN ('bash@sentry10.com', 'brian@wagl.ai')
 GROUP BY u."Email", u."FirstName", u."LastName"
 ORDER BY u."Email";
+
+-- Create ChatAdmin role if it doesn't exist
+INSERT INTO "Roles" ("Id", "Name", "NormalizedName", "ConcurrencyStamp")
+SELECT gen_random_uuid(), 'ChatAdmin', 'CHATADMIN', gen_random_uuid()::text
+WHERE NOT EXISTS (SELECT 1 FROM "Roles" WHERE "Name" = 'ChatAdmin');
 
 -- Promote bash@sentry10.com to Admin and ChatAdmin
 INSERT INTO "UserRoles" ("UserId", "RoleId")
@@ -42,21 +48,8 @@ WHERE u."Email" = 'brian@wagl.ai'
     WHERE ur2."UserId" = u."Id" AND ur2."RoleId" = r."Id"
   );
 
--- Also promote admin@example.com to Admin and ChatAdmin
-INSERT INTO "UserRoles" ("UserId", "RoleId")
-SELECT
-    u."Id" as "UserId",
-    r."Id" as "RoleId"
-FROM "Users" u
-CROSS JOIN "Roles" r
-WHERE u."Email" = 'admin@example.com'
-  AND r."Name" IN ('Admin', 'ChatAdmin')
-  AND NOT EXISTS (
-    SELECT 1 FROM "UserRoles" ur2
-    WHERE ur2."UserId" = u."Id" AND ur2."RoleId" = r."Id"
-  );
-
--- Verify the promotions worked
+-- Verify final status
+SELECT 'Final user status after promotion:' as info;
 SELECT
     u."Email",
     u."FirstName",
@@ -65,9 +58,8 @@ SELECT
 FROM "Users" u
 LEFT JOIN "UserRoles" ur ON u."Id" = ur."UserId"
 LEFT JOIN "Roles" r ON ur."RoleId" = r."Id"
-WHERE u."Email" IN ('bash@sentry10.com', 'brian@wagl.ai', 'admin@example.com')
+WHERE u."Email" IN ('bash@sentry10.com', 'brian@wagl.ai')
 GROUP BY u."Email", u."FirstName", u."LastName"
 ORDER BY u."Email";
 
--- Show a summary
-SELECT 'Admin promotion completed!' as status;
+SELECT 'Admin promotion completed for both users!' as status;
